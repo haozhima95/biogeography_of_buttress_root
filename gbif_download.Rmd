@@ -56,7 +56,7 @@ specieslist <- unique(correctdf$Accepted_SPNAME)
 ```
 
 
-
+#### Start the loop to download.
 
 
 ```{r steup, include=FALSE}
@@ -66,8 +66,18 @@ for(i in 1:length(specieslist)){
   
   
   obs.pt <- get_gbif(sp_name = specieslist[i], basis = c('OBSERVATION', 'HUMAN_OBSERVATION'), time_period = c(1990,3000), duplicates = F, identic_xy = TRUE, absences = FALSE, grain = 990 )
+
+## Several limitations should be used to filter speceis records. 
+
+### 1) only observation and human observations are included
+### 2) only recent data are included
+### 3) relatively accurate spatial resolution
+### 4) no duplication, no absence data
+
   obs.pt <- obs.pt %>%
     filter(grepl(specieslist[i], scientificName))
+
+
   obs.pt <- obs.pt %>%
   filter(taxonRank == 'SPECIES')
   if(nrow(obs.pt)>0){
