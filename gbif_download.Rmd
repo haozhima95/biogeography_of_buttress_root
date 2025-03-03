@@ -1,0 +1,195 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-04-08"
+---
+
+## This script is used for downloading individual occurrence data of those species that exhibit buttress roots gatherred from distinct studies in tropical regions. 
+
+
+#### Load packages
+
+```{r}
+library(rgbif)
+library(dplyr)
+
+library(ggplot2)
+
+library(readr)
+
+library(feather)
+
+library(sf)
+library(rWCVP)
+
+```
+
+
+#### my personal information
+
+
+```{r}
+user <- 'haozhi_ma'
+pwd <- '950518ma'
+email <- 'haozhima95@gmail.com'
+
+```
+
+
+#### Load the data
+
+```{r}
+df <- read.csv('~/Desktop/buttress_root/butress_species_20240711.csv')
+
+
+
+head(df)
+
+```
+
+
+```{r}
+specieslist <- df$Species
+
+specieslist <- sub('^(\\S*\\s+\\S+).*', '\\1', specieslist)
+
+specieslist <- unique(specieslist)
+```
+
+```{r}
+#specieslist <- specieslist[-c(30,49,525,526)]
+```
+
+
+#### Correct the names?
+
+
+```{r}
+
+bestmatch <- read_feather('~/Desktop/buttress_root/BEST_MATCH_all_species_TPL.feather')
+
+
+head(bestmatch)
+
+```
+
+
+```{r}
+dfcorrect <- df %>%
+  left_join(bestmatch, by = c('Species' = 'raw_name'))
+
+head(dfcorrect)
+
+
+
+```
+
+```{r}
+gbif_taxon_keys <- 
+  specieslist %>%
+  name_backbone_checklist(strict = T) %>%
+  filter(!matchType == 'NONE')%>%
+  pull(species)
+  #pull(usageKey)
+
+
+```
+
+
+```{r}
+
+duplicated(gbif_taxon_keys)
+
+gbif_taxon_keys <- unique(gbif_taxon_keys)
+
+gbif_taxon_keys <- gbif_taxon_keys[!is.na(gbif_taxon_keys)]
+
+```
+
+
+```{r}
+occ_download(
+  pred_in('taxonKey', gbif_taxon_keys),
+  format = 'SIMPLE_CSV',
+  user = user,
+  pwd = pwd,
+  email = email,
+  pred_in('basisOfRecord', c('OBSERVATION', 'HUMAN_OBSERVATION', 'MACHINE_OBSERVATION')),
+  pred_in('hasCoordinate', TRUE),
+  pred_gte('year', 1990)
+)
+
+```
+
+
+```{r}
+#remotes::install_github("8Ginette8/gbif.range", force = T)
+library(gbif.range)
+library(terra)
+library(rnaturalearth)
+library(rWCVP)
+library(rWCVPdata)
+```
+
+
+
+
+
+```{r steup, include=FALSE}
+
+obs.pt <- get_gbif(sp_name = 'Pouteria torta', basis = c('OBSERVATION', 'HUMAN_OBSERVATION'), time_period = c(1990,3000), duplicates = F, identic_xy = TRUE, absences = FALSE,  grain = 990)
+obs.pt <- obs.pt %>%
+  filter(grepl('Pouteria torta', scientificName))
+
+```
+
+
+```{r}
+rangetiger <- get_range(sp_name = specieslist[2],occ_coord = obs.pt, Bioreg =eco.earth, Bioreg_name = 'ECO_NAME')
+
+countries <- vect(ne_countries(type = 'countries', returnclass = 'sf'))
+plot(countries, col = "#bcdddc")
+#points(obs.pt[,c('decimalLongitude', 'decimalLatitude')] ,pch=20,col="#99340470",cex=1.5)
+
+plot(rangetiger,add = T, axes = F, legend = F)
+```
+
+
+```{r steup, include=FALSE}
+#specieslist <- sub('^(\\S*\\s+\\S+).*', '\\1', specieslist)
+
+for(i in 1:length(specieslist)){
+  
+  
+  obs.pt <- get_gbif(sp_name = specieslist[i], basis = c('OBSERVATION', 'HUMAN_OBSERVATION'), time_period = c(1990,3000), duplicates = F, identic_xy = TRUE, absences = FALSE, grain = 990 )
+  obs.pt <- obs.pt %>%
+    filter(grepl(specieslist[i], scientificName))
+  obs.pt <- obs.pt %>%
+  filter(taxonRank == 'SPECIES')
+  if(nrow(obs.pt)>0){
+  obs.pt$flag <- i
+  
+  nativerange <- try(wcvp_distribution(specieslist[i], taxon_rank = 'species', introduced = FALSE, extinct = FALSE, location_doubtful = FALSE), silent = TRUE)
+  if("try-error" %in% class(nativerange)){
+    obs.pt$native <- 'UNDET'
+    write_csv(obs.pt, paste0('~/Desktop/buttress_root/gbif_species_dist/', i, '_observations_20240528.csv'))
+  }else{
+
+  obs <- obs.pt %>%
+  st_as_sf(coords = c('decimalLongitude', 'decimalLatitude'), crs = st_crs(4326))
+  obs$native <- st_intersects(obs, st_union(nativerange), sparse = FALSE)[,1]
+  obs.pt$native <- obs$native
+
+  
+  write_csv(obs.pt, paste0('~/Desktop/buttress_root/gbif_species_dist/', i, '_observations_20240725.csv'))
+  }
+  }
+}
+
+
+```
+
+
+```{r}
+```
+

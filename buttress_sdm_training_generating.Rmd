@@ -1,0 +1,448 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-06-11"
+---
+
+```{r}
+library(dplyr)
+
+library(readr)
+
+library(ggplot2)
+
+library(maps)
+
+library(data.table)
+```
+
+
+```{r}
+
+allhyper <- read.csv('~/Desktop/buttress_root/native_occ_with_comp_20240725.csv')
+
+
+head(allhyper)
+
+```
+
+```{r}
+allbutt <- read.csv('~/Desktop/buttress_root/native_buttress_aggregation_with_comp_20240725.csv')
+
+allbutt <- allbutt %>%
+  mutate(buttress = 1)
+
+head(allbutt)
+```
+
+```{r}
+buttresslist <- unique(allbutt[allbutt$buttress == 1,]$inputsearch)
+```
+
+
+
+
+
+```{r}
+nameinter = intersect(names(allhyper), names(allbutt))
+
+allhyper <- allhyper %>%
+  dplyr::select(nameinter)
+
+allbutt <- allbutt %>%
+  dplyr::select(nameinter)
+
+
+bothall <- rbind(allhyper, allbutt)
+```
+
+
+
+
+```{r}
+gbifpixel <- bothall%>%
+  group_by(pixel_lon, pixel_lat) %>%
+  dplyr::summarise(
+    #dominantspecies = getmode(as.factor(input.search)),
+    country = first(country),
+    #continent = first(Continent),
+    buttressfraction = sum(buttress)/n(),
+    #buttressocc = sum(buttress),
+    totalocc = n(),
+    #speciesrichness = n_distinct(inputsearch),
+    #buttressrichness = uniqueN(inputsearch[buttress == 1]),
+    #buttressrichnessfrac = uniqueN(inputsearch[buttress == 1])/n_distinct(inputsearch),
+    CHELSA_Annual_Mean_Temperature = first(CHELSA_Annual_Mean_Temperature),
+    CHELSA_Annual_Precipitation = first(CHELSA_Annual_Precipitation),
+    CHELSA_Isothermality = first(CHELSA_Isothermality),
+    CHELSA_Temperature_Annual_Range = first(CHELSA_Temperature_Annual_Range),
+    CHELSA_Precipitation_Seasonality = first(CHELSA_Precipitation_Seasonality),
+    Cation = first(Cation),
+    EarthEnvCloudCover_MODCF_meanannual = first(EarthEnvCloudCover_MODCF_meanannual),
+    EarthEnvTopoMed_Roughness = first(EarthEnvTopoMed_Roughness),
+    EarthEnvTopoMed_Elevation = first(EarthEnvTopoMed_Elevation),
+    Fire_Frequency = first(Fire_Frequency),
+    cropland = first(cropland),
+    rangeland = first(rangeland),
+    pasture = first(pasture),
+    HumanFootprint = first(HumanFootprint),
+    Human_Development_Percentage = first(Human_Development_Percentage),
+    Human_Disturbance = first(Human_Disturbance),
+    Nitrogen = first(Nitrogen),
+    Organic_Carbon = first(Organic_Carbon),
+    PresentTreeCover = first(PresentTreeCover),
+    CanopyHeight = first(CanopyHeight),
+    SG_Absolute_depth_to_bedrock = first(SG_Absolute_depth_to_bedrock),
+    SG_Clay_Content_0_100cm = first(SG_Clay_Content_0_100cm),
+    SG_Sand_Content_0_100cm = first(SG_Sand_Content_0_100cm),
+    SG_Silt_Content_0_100cm = first(SG_Silt_Content_0_100cm),
+    SG_Soil_pH_H2O_0_100cm = first(SG_Soil_pH_H2O_0_100cm),
+    Tree_Density = first(Tree_Density),
+    WWF_Biome = first(WWF_Biome),
+    PET = first(PET)
+  )%>%
+  ungroup()
+
+```
+
+
+```{r}
+
+papixel <- gbifpixel %>%
+  filter(buttressfraction == 0)
+
+
+```
+
+
+
+
+```{r}
+buttresspixel <- allbutt %>%
+  #filter(inputsearch == buttresslist[1])%>%
+  group_by(pixel_lon, pixel_lat)%>%
+  dplyr::summarise(
+    #dominantspecies = getmode(as.factor(input.search)),
+    country = first(country),
+    #continent = first(Continent),
+    #buttressfraction = sum(buttress)/n(),
+    #buttressocc = sum(buttress),
+    totalocc = n(),
+    #speciesrichness = n_distinct(inputsearch),
+    #buttressrichness = uniqueN(inputsearch[buttress == 1]),
+    #buttressrichnessfrac = uniqueN(inputsearch[buttress == 1])/n_distinct(inputsearch),
+    CHELSA_Annual_Mean_Temperature = first(CHELSA_Annual_Mean_Temperature),
+    CHELSA_Annual_Precipitation = first(CHELSA_Annual_Precipitation),
+    CHELSA_Isothermality = first(CHELSA_Isothermality),
+    CHELSA_Temperature_Annual_Range = first(CHELSA_Temperature_Annual_Range),
+    CHELSA_Precipitation_Seasonality = first(CHELSA_Precipitation_Seasonality),
+    Cation = first(Cation),
+    EarthEnvCloudCover_MODCF_meanannual = first(EarthEnvCloudCover_MODCF_meanannual),
+    EarthEnvTopoMed_Roughness = first(EarthEnvTopoMed_Roughness),
+    EarthEnvTopoMed_Elevation = first(EarthEnvTopoMed_Elevation),
+    Fire_Frequency = first(Fire_Frequency),
+    cropland = first(cropland),
+    rangeland = first(rangeland),
+    pasture = first(pasture),
+    HumanFootprint = first(HumanFootprint),
+    Human_Development_Percentage = first(Human_Development_Percentage),
+    Human_Disturbance = first(Human_Disturbance),
+    Nitrogen = first(Nitrogen),
+    #Organic_Carbon = first(Organic_Carbon),
+    PresentTreeCover = first(PresentTreeCover),
+    CanopyHeight = first(CanopyHeight),
+    SG_Absolute_depth_to_bedrock = first(SG_Absolute_depth_to_bedrock),
+    SG_Clay_Content_0_100cm = first(SG_Clay_Content_0_100cm),
+    SG_Sand_Content_0_100cm = first(SG_Sand_Content_0_100cm),
+    SG_Silt_Content_0_100cm = first(SG_Silt_Content_0_100cm),
+    SG_Soil_pH_H2O_0_100cm = first(SG_Soil_pH_H2O_0_100cm),
+    Tree_Density = first(Tree_Density),
+    WWF_Biome = first(WWF_Biome),
+    PET = first(PET)
+  )%>%
+  ungroup()
+
+
+```
+
+
+```{r}
+
+for(i in 1:length(buttresslist)){
+#i = 86
+
+bothdf <- NA
+buttressgbif <- allbutt %>%
+  filter(inputsearch == buttresslist[i])%>%
+  group_by(pixel_lon, pixel_lat)%>%
+  dplyr::summarise(
+    buttressspecies = first(inputsearch),
+    #dominantspecies = getmode(as.factor(input.search)),
+    country = first(country),
+    #continent = first(Continent),
+    #buttressfraction = sum(buttress)/n(),
+    #buttressocc = sum(buttress),
+    totalocc = n(),
+    #speciesrichness = n_distinct(inputsearch),
+    #buttressrichness = uniqueN(inputsearch[buttress == 1]),
+    #buttressrichnessfrac = uniqueN(inputsearch[buttress == 1])/n_distinct(inputsearch),
+    CHELSA_Annual_Mean_Temperature = first(CHELSA_Annual_Mean_Temperature),
+    CHELSA_Annual_Precipitation = first(CHELSA_Annual_Precipitation),
+    CHELSA_Isothermality = first(CHELSA_Isothermality),
+    CHELSA_Temperature_Annual_Range = first(CHELSA_Temperature_Annual_Range),
+    CHELSA_Precipitation_Seasonality = first(CHELSA_Precipitation_Seasonality),
+    Cation = first(Cation),
+    EarthEnvCloudCover_MODCF_meanannual = first(EarthEnvCloudCover_MODCF_meanannual),
+    EarthEnvTopoMed_Roughness = first(EarthEnvTopoMed_Roughness),
+    EarthEnvTopoMed_Elevation = first(EarthEnvTopoMed_Elevation),
+    Fire_Frequency = first(Fire_Frequency),
+    cropland = first(cropland),
+    rangeland = first(rangeland),
+    pasture = first(pasture),
+    HumanFootprint = first(HumanFootprint),
+    Human_Development_Percentage = first(Human_Development_Percentage),
+    Human_Disturbance = first(Human_Disturbance),
+    Nitrogen = first(Nitrogen),
+    #Organic_Carbon = first(Organic_Carbon),
+    PresentTreeCover = first(PresentTreeCover),
+    CanopyHeight = first(CanopyHeight),
+    SG_Absolute_depth_to_bedrock = first(SG_Absolute_depth_to_bedrock),
+    SG_Clay_Content_0_100cm = first(SG_Clay_Content_0_100cm),
+    SG_Sand_Content_0_100cm = first(SG_Sand_Content_0_100cm),
+    SG_Silt_Content_0_100cm = first(SG_Silt_Content_0_100cm),
+    SG_Soil_pH_H2O_0_100cm = first(SG_Soil_pH_H2O_0_100cm),
+    Tree_Density = first(Tree_Density),
+    WWF_Biome = first(WWF_Biome),
+    PET = first(PET)
+  )%>%
+  ungroup()
+
+
+paocc <- bothall %>%
+  filter(inputsearch != buttresslist[i])
+
+paocc <- paocc %>%
+  filter(!pixel_lon %in% buttressgbif$pixel_lon | !pixel_lat %in% buttressgbif$pixel_lat)
+
+paocc <- paocc %>%
+  filter(country %in% unique(buttressgbif$country))
+
+plotpa <- paocc %>%
+  group_by(pixel_lon, pixel_lat)%>%
+  dplyr::summarise(
+    #dominantspecies = getmode(as.factor(input.search)),
+    country = first(country),
+    #continent = first(Continent),
+    #buttressfraction = sum(buttress)/n(),
+    #buttressocc = sum(buttress),
+    totalocc = n(),
+    #speciesrichness = n_distinct(inputsearch),
+    #buttressrichness = uniqueN(inputsearch[buttress == 1]),
+    #buttressrichnessfrac = uniqueN(inputsearch[buttress == 1])/n_distinct(inputsearch),
+    CHELSA_Annual_Mean_Temperature = first(CHELSA_Annual_Mean_Temperature),
+    CHELSA_Annual_Precipitation = first(CHELSA_Annual_Precipitation),
+    CHELSA_Isothermality = first(CHELSA_Isothermality),
+    CHELSA_Temperature_Annual_Range = first(CHELSA_Temperature_Annual_Range),
+    CHELSA_Precipitation_Seasonality = first(CHELSA_Precipitation_Seasonality),
+    Cation = first(Cation),
+    EarthEnvCloudCover_MODCF_meanannual = first(EarthEnvCloudCover_MODCF_meanannual),
+    EarthEnvTopoMed_Roughness = first(EarthEnvTopoMed_Roughness),
+    EarthEnvTopoMed_Elevation = first(EarthEnvTopoMed_Elevation),
+    Fire_Frequency = first(Fire_Frequency),
+    cropland = first(cropland),
+    rangeland = first(rangeland),
+    pasture = first(pasture),
+    HumanFootprint = first(HumanFootprint),
+    Human_Development_Percentage = first(Human_Development_Percentage),
+    Human_Disturbance = first(Human_Disturbance),
+    Nitrogen = first(Nitrogen),
+    #Organic_Carbon = first(Organic_Carbon),
+    PresentTreeCover = first(PresentTreeCover),
+    CanopyHeight = first(CanopyHeight),
+    SG_Absolute_depth_to_bedrock = first(SG_Absolute_depth_to_bedrock),
+    SG_Clay_Content_0_100cm = first(SG_Clay_Content_0_100cm),
+    SG_Sand_Content_0_100cm = first(SG_Sand_Content_0_100cm),
+    SG_Silt_Content_0_100cm = first(SG_Silt_Content_0_100cm),
+    SG_Soil_pH_H2O_0_100cm = first(SG_Soil_pH_H2O_0_100cm),
+    Tree_Density = first(Tree_Density),
+    WWF_Biome = first(WWF_Biome),
+    PET = first(PET)
+  )%>%
+  ungroup()
+  
+#  plotpa <- plotpa%>%
+#    select(nameinter)
+  
+  plotpa <- plotpa %>%
+    mutate(class = 0,
+           buttressspecies = buttresslist[i]
+           )
+  
+  
+#  buttressgbif <- buttressgbif%>%
+#    select(nameinter)
+  
+  buttressgbif <- buttressgbif %>%
+    mutate(class = 1)
+
+
+#head(buttressgbif)
+
+#names(buttressgbif)
+
+if(nrow(buttressgbif)<20){
+  next
+}
+if(nrow(buttressgbif)>=20 & nrow(buttressgbif)<500){
+  
+  if(nrow(plotpa)<1000){
+    bothdf <- rbind(buttressgbif, plotpa)
+  }else{
+    plotpa <- plotpa %>%
+      sample_n(1000)
+    
+    bothdf <- rbind(buttressgbif, plotpa)
+  }
+  
+}
+if(nrow(buttressgbif)>=500 & nrow(buttressgbif) < 1000){
+ 
+  if(nrow(plotpa)<10*nrow(buttressgbif)){
+    bothdf <- rbind(buttressgbif, plotpa)
+  }else{
+    plotpa <- plotpa %>%
+      sample_n(10*nrow(buttressgbif))
+    
+    bothdf <- rbind(buttressgbif, plotpa)
+  }
+}
+
+if(nrow(buttressgbif)>=1000 ){
+  
+  if(nrow(plotpa)<(10000 - nrow(buttressgbif))){
+    bothdf <- rbind(buttressgbif, plotpa)
+  }else{
+    plotpa <- plotpa %>%
+      sample_n(10000 - nrow(buttressgbif))
+    
+    bothdf <- rbind(buttressgbif, plotpa)
+  }
+  
+}
+
+#if(nrow(buttressgbif)>=10000){
+  
+#  buttressgbif <- buttressgbif %>%
+#    sample_n(10000)
+  
+#  if(nrow(plotpa)<10000){
+    
+#    bothdf <- rbind(buttressgbif, plotpa)
+#  }else{
+    
+#    plotpa <- plotpa %>%
+#      sample_n(10000)
+#    bothdf <- rbind(buttressgbif, plotpa)
+#  }
+#}
+
+
+
+
+bothdf <- bothdf %>%
+  mutate(longitude = pixel_lon,
+         latitude = pixel_lat,
+         speciesflag = i)
+
+
+write_csv(bothdf, paste0('~/Desktop/buttress_root/buttress_species_sdm/species_',i,'_sdm_hyper_abs_20240730.csv'))
+
+}
+
+```
+
+
+
+```{r}
+setwd('~/Desktop/buttress_root/buttress_species_sdm')
+allspecies <- do.call(rbind, lapply(list.files(path = '.', pattern = 'hyper_abs_20240730'), read.csv, header = T, sep = ','))
+head(allspecies)
+
+```
+
+
+```{r}
+write_csv(allspecies, '~/Desktop/buttress_root/allspecies_sdm_hyper_abs_20240730.csv')
+
+```
+
+
+
+```{r}
+buttinfo <- allbutt %>%
+  #filter(inputsearch == buttresslist[i])%>%
+  group_by(pixel_lon, pixel_lat, inputsearch)%>%
+  dplyr::summarise(
+    #dominantspecies = getmode(as.factor(input.search)),
+    country = first(country),
+    #continent = first(Continent),
+    buttressfraction = sum(buttress)/n(),
+    #buttressocc = sum(buttress),
+    totalocc = n(),
+    #speciesrichness = n_distinct(inputsearch),
+    #buttressrichness = uniqueN(inputsearch[buttress == 1]),
+    #buttressrichnessfrac = uniqueN(inputsearch[buttress == 1])/n_distinct(inputsearch),
+    CHELSA_Annual_Mean_Temperature = first(CHELSA_Annual_Mean_Temperature),
+    CHELSA_Annual_Precipitation = first(CHELSA_Annual_Precipitation),
+    CHELSA_Isothermality = first(CHELSA_Isothermality),
+    CHELSA_Temperature_Annual_Range = first(CHELSA_Temperature_Annual_Range),
+    CHELSA_Precipitation_Seasonality = first(CHELSA_Precipitation_Seasonality),
+    Cation = first(Cation),
+    EarthEnvCloudCover_MODCF_meanannual = first(EarthEnvCloudCover_MODCF_meanannual),
+    EarthEnvTopoMed_Roughness = first(EarthEnvTopoMed_Roughness),
+    EarthEnvTopoMed_Elevation = first(EarthEnvTopoMed_Elevation),
+    Fire_Frequency = first(Fire_Frequency),
+    cropland = first(cropland),
+    rangeland = first(rangeland),
+    pasture = first(pasture),
+    HumanFootprint = first(HumanFootprint),
+    Human_Development_Percentage = first(Human_Development_Percentage),
+    Human_Disturbance = first(Human_Disturbance),
+    Nitrogen = first(Nitrogen),
+    Organic_Carbon = first(Organic_Carbon),
+    PresentTreeCover = first(PresentTreeCover),
+    CanopyHeight = first(CanopyHeight),
+    SG_Absolute_depth_to_bedrock = first(SG_Absolute_depth_to_bedrock),
+    SG_Clay_Content_0_100cm = first(SG_Clay_Content_0_100cm),
+    SG_Sand_Content_0_100cm = first(SG_Sand_Content_0_100cm),
+    SG_Silt_Content_0_100cm = first(SG_Silt_Content_0_100cm),
+    SG_Soil_pH_H2O_0_100cm = first(SG_Soil_pH_H2O_0_100cm),
+    Tree_Density = first(Tree_Density),
+    WWF_Biome = first(WWF_Biome),
+    PET = first(PET)
+  )%>%
+  ungroup()
+```
+
+
+```{r}
+ss <- buttinfo %>%
+  group_by(inputsearch)%>%
+  summarise(countocc = n())%>%
+  ungroup()
+
+
+```
+
+
+```{r}
+ss %>%
+  ggplot(., aes(x = countocc))+
+  geom_histogram(bins = 100)+
+  geom_vline(xintercept = 20)
+
+
+```
+
+
+

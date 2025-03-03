@@ -1,0 +1,568 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-06-03"
+---
+
+
+
+```{r}
+library(dplyr)
+
+library(ggplot2)
+
+library(readr)
+
+library(data.table)
+```
+
+
+```{r}
+occgbif <- read.csv('~/Desktop/buttress_root/native_occ_with_comp.csv')
+
+head(occgbif)
+
+```
+
+```{r}
+gbifpixel <- occgbif%>%
+  group_by(pixel_lon, pixel_lat) %>%
+  dplyr::summarise(
+    #dominantspecies = getmode(as.factor(input.search)),
+    country = first(country),
+    continent = first(Continent),
+    buttressfraction = sum(buttress)/n(),
+    buttressocc = sum(buttress),
+    totalocc = n(),
+    speciesrichness = n_distinct(inputsearch),
+    buttressrichness = uniqueN(inputsearch[buttress == 1]),
+    buttressrichnessfrac = uniqueN(inputsearch[buttress == 1])/n_distinct(inputsearch),
+    CHELSA_Annual_Mean_Temperature = first(CHELSA_Annual_Mean_Temperature),
+    CHELSA_Annual_Precipitation = first(CHELSA_Annual_Precipitation),
+    CHELSA_Isothermality = first(CHELSA_Isothermality),
+    CHELSA_Temperature_Annual_Range = first(CHELSA_Temperature_Annual_Range),
+    CHELSA_Precipitation_Seasonality = first(CHELSA_Precipitation_Seasonality),
+    Cation = first(Cation),
+    EarthEnvCloudCover_MODCF_meanannual = first(EarthEnvCloudCover_MODCF_meanannual),
+    EarthEnvTopoMed_Roughness = first(EarthEnvTopoMed_Roughness),
+    EarthEnvTopoMed_Elevation = first(EarthEnvTopoMed_Elevation),
+    Fire_Frequency = first(Fire_Frequency),
+    cropland = first(cropland),
+    rangeland = first(rangeland),
+    pasture = first(pasture),
+    HumanFootprint = first(HumanFootprint),
+    Human_Development_Percentage = first(Human_Development_Percentage),
+    Human_Disturbance = first(Human_Disturbance),
+    Nitrogen = first(Nitrogen),
+    Organic_Carbon = first(Organic_Carbon),
+    PresentTreeCover = first(PresentTreeCover),
+    CanopyHeight = first(CanopyHeight),
+    SG_Absolute_depth_to_bedrock = first(SG_Absolute_depth_to_bedrock),
+    SG_Clay_Content_0_100cm = first(SG_Clay_Content_0_100cm),
+    SG_Sand_Content_0_100cm = first(SG_Sand_Content_0_100cm),
+    SG_Silt_Content_0_100cm = first(SG_Silt_Content_0_100cm),
+    SG_Soil_pH_H2O_0_100cm = first(SG_Soil_pH_H2O_0_100cm),
+    Tree_Density = first(Tree_Density),
+    WWF_Biome = first(WWF_Biome),
+    PET = first(PET)
+  )%>%
+  ungroup()
+
+```
+
+```{r}
+
+head(gbifpixel)
+```
+
+```{r}
+absence <- read.csv('~/Desktop/buttress_root/random_zero_africa.csv');
+
+absence <- absence %>%
+  mutate(pixel_lon = longitude,
+         pixel_lat = latitude,
+         country = 'null',
+         continent = 'Africa',
+         totalocc = 0,
+         speciesrichness = 0,
+         )
+
+```
+
+
+```{r}
+nn <- names(gbifpixel)
+
+absence <- absence[,nn]
+
+```
+
+
+```{r}
+absence <- absence %>%
+  filter(PresentTreeCover == 0)
+
+```
+
+```{r}
+library(maps)
+
+worlddata <- map_data('world')
+
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = absence, aes(x = pixel_lon, y = pixel_lat, color = buttressfraction))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c()+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+```
+
+
+
+
+```{r}
+gbifpixel <- rbind(gbifpixel,absence)
+
+
+```
+
+
+
+
+```{r}
+
+library(maps)
+
+worlddata <- map_data('world')
+
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = gbifpixel, aes(x = pixel_lon, y = pixel_lat, color = buttressfraction))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c()+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+```
+```{r}
+
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = gbifpixel, aes(x = pixel_lon, y = pixel_lat, color = buttressocc))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c(limits = c(0,1), oob = scales::squish)+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+```
+```{r}
+
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = gbifpixel, aes(x = pixel_lon, y = pixel_lat, color = buttressrichness))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c(limits = c(0,2), oob = scales::squish)+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+```
+
+
+```{r}
+
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = gbifpixel, aes(x = pixel_lon, y = pixel_lat, color = buttressrichnessfrac))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c(limits = c(0,0.3), oob = scales::squish)+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+```
+
+
+```{r}
+unique(gbifpixel$country)
+
+```
+
+
+```{r}
+brazilgbif <- gbifpixel %>%
+  filter(country == 'Brazil')
+
+```
+
+
+```{r}
+ggplot() + 
+  geom_map(data = worlddata[worlddata$long>-20 & worlddata$long <= 70 & worlddata$lat>-40 & worlddata$lat < 40,], map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = gbifpixel[gbifpixel$pixel_lon>-20 & gbifpixel$pixel_lon<=70 & gbifpixel$pixel_lat>-40 & gbifpixel$pixel_lat < 40,], aes(x = pixel_lon, y = pixel_lat, color = buttressfraction))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c()+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+
+```
+
+
+```{r}
+ggplot() + 
+  geom_map(data = worlddata[worlddata$long<=-20 & worlddata$long > -100 & worlddata$lat>= -30 & worlddata$lat < 10,], map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = gbifpixel[gbifpixel$pixel_lon<=-20 & gbifpixel$pixel_lon> -100 & gbifpixel$pixel_lat>=-30 & gbifpixel$pixel_lat < 10,], aes(x = pixel_lon, y = pixel_lat, color = buttressocc))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c(limits = c(0,1), oob = scales::squish)+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+```
+
+
+```{r}
+
+gbifpixel %>%
+  filter(pixel_lon>-20 & pixel_lon<=70 & pixel_lat>-40 & pixel_lat < 40 & PresentTreeCover > 0.5 & CHELSA_Annual_Mean_Temperature>160)%>%
+  filter(continent == 'Africa')%>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressfraction, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()
+
+
+gbifpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressocc, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()+
+  scale_y_continuous(trans = 'log1p')
+
+
+gbifpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressrichness, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()+
+  scale_y_continuous(trans = 'log1p')
+
+gbifpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressrichnessfrac, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()+
+  scale_y_continuous(trans = 'log1p')
+
+
+gbifpixel %>%
+  ggplot(., aes(x = CanopyHeight, y = buttressfraction, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()
+
+
+gbifpixel %>%
+  ggplot(., aes(x = CHELSA_Temperature_Annual_Range, y = buttressfraction, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()
+
+
+
+```
+```{r}
+
+gbifpixel %>%
+  filter(pixel_lon>-20 & pixel_lon<=70 & pixel_lat>-40 & pixel_lat < 40 )%>%
+  filter(continent == 'Africa')%>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressfraction, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()
+
+
+gbifpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressocc, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth(method = 'glm', formula = 'y~log(x)')+
+  scale_y_continuous(trans = 'log1p')
+
+
+gbifpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressrichness, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()+
+  scale_y_continuous(trans = 'log1p')
+
+gbifpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressrichnessfrac, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()+
+  scale_y_continuous(trans = 'log1p')
+
+
+```
+
+```{r}
+afpixel <- gbifpixel %>%
+  filter(pixel_lon>-20 & pixel_lon<=70 & pixel_lat>-40 & pixel_lat < 40 & continent == 'Africa' )
+
+afpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature))+
+  geom_histogram(bins = 80)
+
+afpixel %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation))+
+  geom_histogram(bins = 80)
+
+afpixel %>%
+  ggplot(., aes(x = Nitrogen))+
+  geom_histogram(bins = 80)
+
+afpixel %>%
+  ggplot(., aes(x = Organic_Carbon))+
+  geom_histogram(bins = 80)
+
+afpixel %>%
+  ggplot(., aes(x = PET))+
+  geom_histogram(bins = 80)
+
+afpixel %>%
+  ggplot(., aes(x = SG_Sand_Content_0_100cm))+
+  geom_histogram(bins = 80)
+
+```
+
+
+
+```{r}
+afpixel%>%
+  ggplot(., aes(x = PresentTreeCover, y = buttressfraction,group = continent, color = continent))+
+  geom_point()+
+  geom_smooth()+
+  scale_y_continuous(trans = 'log1p')
+gbifpixel %>%
+  ggplot(., aes(x = PresentTreeCover, y = buttressrichnessfrac,group = continent, color = continent))+
+  geom_point()+
+  geom_smooth(method = 'lm')
+
+```
+
+
+```{r}
+
+afpixel %>%
+  ggplot(., aes(x = pixel_lat, y = buttressfraction, group = continent, color = continent))+
+  geom_point()+
+  geom_smooth(method = 'gam')
+
+
+
+```
+
+
+
+```{r}
+
+gbifpixel <- gbifpixel %>%
+  mutate(longitude = pixel_lon,
+         latitude = pixel_lat)
+
+write_csv(gbifpixel, '~/Desktop/buttress_root/gbif_native_occ_pixellevle_training.csv')
+
+```
+
+
+
+```{r}
+afdf <- read.csv('~/Desktop/buttress_root/africa_splot_open_buttress_comp.csv')
+
+head(afdf)
+```
+
+```{r}
+afdf %>%
+  ggplot(., aes(x = CanopyHeight, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+
+afdf %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Nitrogen, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Organic_Carbon, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+afdf %>%
+  ggplot(., aes(x = PresentTreeCover, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+afdf %>%
+  filter(Tree_Density>0 & Tree_Density < 100000)%>%
+  ggplot(., aes(x = Tree_Density, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Human_Disturbance, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Latitude, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+```
+
+
+```{r}
+afdf <- read.csv('~/Desktop/buttress_root/amazonia_splot_open_buttress_comp.csv')
+
+head(afdf)
+```
+
+```{r}
+names(afdf)
+```
+
+
+```{r}
+afdf %>%
+  filter(CanopyHeight>0)%>%
+  ggplot(., aes(x = CanopyHeight, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+
+afdf %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Nitrogen, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Organic_Carbon, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+afdf %>%
+  ggplot(., aes(x = PresentTreeCover, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+afdf %>%
+  filter(Tree_Density>0 & Tree_Density < 100000)%>%
+  ggplot(., aes(x = Tree_Density, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Human_Disturbance, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Human_Development_Percentage, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+```
+
+```{r}
+afdf <- read.csv('~/Desktop/buttress_root/asia_splot_open_buttress_comp.csv')
+
+head(afdf)
+```
+
+
+```{r}
+afdf %>%
+  filter(CanopyHeight>0)%>%
+  ggplot(., aes(x = CanopyHeight, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+
+afdf %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Nitrogen, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Organic_Carbon, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+afdf %>%
+  ggplot(., aes(x = PresentTreeCover, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+afdf %>%
+  filter(Tree_Density>0 & Tree_Density < 100000)%>%
+  ggplot(., aes(x = Tree_Density, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Human_Disturbance, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+afdf %>%
+  ggplot(., aes(x = Human_Development_Percentage, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+```
+

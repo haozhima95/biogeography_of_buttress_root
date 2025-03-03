@@ -1,0 +1,94 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-05-16"
+---
+
+```{r}
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(sf)
+library(rWCVP)
+
+```
+
+
+```{r}
+wcvp <- read.table('~/Desktop/buttress_root/wcvp/wcvp_distribution.csv', sep = '|', header = T, quote = '', fill = T, encoding = 'UTF-8')
+
+
+```
+
+
+```{r}
+checklist <- read.table('~/Desktop/buttress_root/wcvp/wcvp_names.csv', sep = '|', header = T, quote = '', fill = T, encoding = 'UTF-8')
+
+
+```
+
+
+
+
+```{r}
+thename <- 'Acrocarpus fraxinifolius'
+
+
+```
+```{r}
+#remotes::install_github("8Ginette8/gbif.range", force = T)
+library(gbif.range)
+library(terra)
+library(rnaturalearth)
+
+```
+
+```{r}
+obs.pt <- get_gbif(sp_name = thename, basis = c('OBSERVATION', 'HUMAN_OBSERVATION'), time_period = c(1990,3000), duplicates = F, identic_xy = T, absences = FALSE,  grain = 990)
+obs.pt <- obs.pt %>%
+  filter(grepl(thename, scientificName))
+obs.pt <- obs.pt %>%
+  filter(taxonRank == 'SPECIES')
+```
+
+```{r}
+nativerange <- wcvp_distribution(thename, taxon_rank = 'species', introduced = FALSE, extinct = FALSE, location_doubtful = FALSE)
+
+```
+
+```{r}
+obs <- obs.pt %>%
+  st_as_sf(coords = c('decimalLongitude', 'decimalLatitude'), crs = st_crs(4326))
+
+```
+
+
+```{r}
+obs$native <- st_intersects(obs, st_union(nativerange), sparse = FALSE)[,1]
+
+```
+
+```{r}
+obs.pt$native <- obs$native
+
+```
+
+
+
+
+
+```{r}
+library(maps)
+
+worlddata <- map_data('world')
+
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  #wcvp_distribution_map(nativerange, crop_map=TRUE)+
+  geom_point(data = obs.pt, aes(x = decimalLongitude, y = decimalLatitude, group = native, color = native))+
+  theme_minimal()
+  
+
+
+```
+
