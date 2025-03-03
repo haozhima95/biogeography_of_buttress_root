@@ -22,137 +22,41 @@ library(feather)
 library(sf)
 library(rWCVP)
 
-```
-
-
-#### my personal information
-
-
-```{r}
-user <- 'haozhi_ma'
-pwd <- '950518ma'
-email <- 'haozhima95@gmail.com'
-
-```
-
-
-#### Load the data
-
-```{r}
-df <- read.csv('~/Desktop/buttress_root/butress_species_20240711.csv')
-
-
-
-head(df)
-
-```
-
-
-```{r}
-specieslist <- df$Species
-
-specieslist <- sub('^(\\S*\\s+\\S+).*', '\\1', specieslist)
-
-specieslist <- unique(specieslist)
-```
-
-```{r}
-#specieslist <- specieslist[-c(30,49,525,526)]
-```
-
-
-#### Correct the names?
-
-
-```{r}
-
-bestmatch <- read_feather('~/Desktop/buttress_root/BEST_MATCH_all_species_TPL.feather')
-
-
-head(bestmatch)
-
-```
-
-
-```{r}
-dfcorrect <- df %>%
-  left_join(bestmatch, by = c('Species' = 'raw_name'))
-
-head(dfcorrect)
-
-
-
-```
-
-```{r}
-gbif_taxon_keys <- 
-  specieslist %>%
-  name_backbone_checklist(strict = T) %>%
-  filter(!matchType == 'NONE')%>%
-  pull(species)
-  #pull(usageKey)
-
-
-```
-
-
-```{r}
-
-duplicated(gbif_taxon_keys)
-
-gbif_taxon_keys <- unique(gbif_taxon_keys)
-
-gbif_taxon_keys <- gbif_taxon_keys[!is.na(gbif_taxon_keys)]
-
-```
-
-
-```{r}
-occ_download(
-  pred_in('taxonKey', gbif_taxon_keys),
-  format = 'SIMPLE_CSV',
-  user = user,
-  pwd = pwd,
-  email = email,
-  pred_in('basisOfRecord', c('OBSERVATION', 'HUMAN_OBSERVATION', 'MACHINE_OBSERVATION')),
-  pred_in('hasCoordinate', TRUE),
-  pred_gte('year', 1990)
-)
-
-```
-
-
-```{r}
-#remotes::install_github("8Ginette8/gbif.range", force = T)
 library(gbif.range)
 library(terra)
 library(rnaturalearth)
 library(rWCVP)
 library(rWCVPdata)
+
+
 ```
 
 
 
 
+#### Load the data
 
-```{r steup, include=FALSE}
-
-obs.pt <- get_gbif(sp_name = 'Pouteria torta', basis = c('OBSERVATION', 'HUMAN_OBSERVATION'), time_period = c(1990,3000), duplicates = F, identic_xy = TRUE, absences = FALSE,  grain = 990)
-obs.pt <- obs.pt %>%
-  filter(grepl('Pouteria torta', scientificName))
-
-```
-
+#### The data is corrected from wcvp and deleted duplications on species. In total, 850 species are included in the buttress root species dataset. 
 
 ```{r}
-rangetiger <- get_range(sp_name = specieslist[2],occ_coord = obs.pt, Bioreg =eco.earth, Bioreg_name = 'ECO_NAME')
 
-countries <- vect(ne_countries(type = 'countries', returnclass = 'sf'))
-plot(countries, col = "#bcdddc")
-#points(obs.pt[,c('decimalLongitude', 'decimalLatitude')] ,pch=20,col="#99340470",cex=1.5)
+correctdf <- read.csv('~/Desktop/buttress_root/buttress_species_correctnames.csv')
 
-plot(rangetiger,add = T, axes = F, legend = F)
+head(correctdf)
+
 ```
+
+### Extract corrected names
+
+```{r}
+
+specieslist <- unique(correctdf$Accepted_SPNAME)
+
+
+```
+
+
+
 
 
 ```{r steup, include=FALSE}
