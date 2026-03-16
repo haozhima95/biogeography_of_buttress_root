@@ -1,4 +1,4 @@
-
+### This script is used to construct Figure 3A & C
 
 var bound = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017"),
 
