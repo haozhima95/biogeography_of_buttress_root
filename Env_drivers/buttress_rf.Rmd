@@ -1,0 +1,1427 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-07-26"
+---
+
+```{r}
+library(data.table)
+library(h2o)
+#library(raster)
+library(tictoc)
+library(foreach)
+library(doParallel)
+library(outliers)
+library(EnvStats)
+library(zoo)
+library(mgcv)
+library(nlme)
+library(HH)
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+library(maps)
+
+worlddata <- map_data('world')
+
+
+```
+
+
+```{r}
+
+amazondf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_plot_pixel_aggregate_20251219.csv');
+
+#names(amazondf)
+
+#cooccurdf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\cooccuring_plots_comp_20241210.csv')
+```
+
+
+
+```{r}
+amazondf <- amazondf %>%
+   dplyr::select(matches(
+    'CHELSA|SG|Canopy|random|pixel|Earth|Depth|Fire|Land|Nitrogen|Olsen|Organic|PET|WWF|World|fraction|buttress|wind|Distance|Aridity'
+  ))%>%
+  mutate(longitude = pixellon,
+         latitude = pixellat)
+
+
+amazondf <- amazondf[complete.cases(amazondf),]
+```
+
+
+
+```{r}
+amazondf <- amazondf %>%
+  filter(!is.na(CHELSA_Annual_Mean_Temperature))%>%
+  filter(!is.na(CHELSA_Annual_Precipitation))%>%
+  filter(!is.na(wind_gust_max))%>%
+  filter(!is.na(Nitrogen))%>%
+  filter(!is.na(OlsenP))%>%
+  filter(!is.na(SG_Soil_pH_H2O_0_100cm))%>%
+  filter(!is.na(SG_Silt_Content_0_100cm))%>%
+  filter(!is.na(SG_Absolute_depth_to_bedrock))%>%
+  filter(!is.na(DistanceToForestEdge))
+
+
+```
+
+
+
+```{r}
+
+write_csv(amazondf, 'C:\\Users\\haozh\\Desktop\\buttress_root\\data\\sampled_buttress_pixels_20250625.csv')
+
+
+```
+
+
+
+
+
+```{r}
+
+amazondf %>%
+  #filter(WWF_Biome == 14)%>%
+  filter(meanfraction>0)%>%
+  nrow()
+
+
+```
+
+
+
+```{r}
+
+amazondf %>%
+  filter(meanfraction>0)%>%
+  filter(!is.na(CHELSA_Annual_Mean_Temperature))%>%
+  nrow()
+
+```
+
+```{r}
+
+subdf <- amazondf %>%
+  filter(buttressfraction == 0)%>%
+  filter(!is.na(CHELSA_Annual_Mean_Temperature))%>%
+  group_by(WWF_Biome)%>%
+  mutate(weight = 1/n())%>%
+  ungroup()
+
+```
+
+
+
+
+```{r}
+
+set.seed(0)
+
+
+subdf1 <- subdf %>%
+  filter(buttressfraction==0)%>%
+  sample_n(500, weight = weight)
+
+```
+
+
+
+```{r}
+
+subdf2 <- amazondf%>%
+  filter(buttressfraction>0)%>%
+  filter(!is.na(CHELSA_Annual_Mean_Temperature))
+  
+
+```
+
+
+```{r}
+
+bothdf <- bind_rows(subdf1,subdf2)
+
+
+```
+
+```{r}
+
+write_csv(bothdf, 'C:\\Users\\haozh\\Desktop\\buttress_root\\training_balance_absence.csv')
+
+```
+
+
+
+```{r}
+amazondf <- amazondf %>%
+  mutate(prediff = (CHELSA_Precipitation_of_Wettest_Quarter - CHELSA_Precipitation_of_Driest_Quarter)/CHELSA_Annual_Precipitation)
+
+
+```
+
+
+```{r}
+amazondf %>%
+  ggplot(., aes(x = prediff, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+amazondf %>%
+  ggplot(., aes(x = CHELSA_Temperature_Seasonality, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+amazondf %>%
+  ggplot(., aes(x = CHELSA_Temperature_Annual_Range, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+amazondf %>%
+  ggplot(., aes(x = CHELSA_Precipitation_Seasonality, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+amazondf %>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+amazondf %>%
+  ggplot(., aes(x = CHELSA_Max_Temperature_of_Warmest_Month, y = buttressfraction))+
+  geom_point()+
+  geom_smooth(method = 'glm', method.args = list(family = binomial))
+
+amazondf %>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+amazondf %>%
+  ggplot(., aes(x = Nitrogen, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()+
+  scale_x_continuous(trans = 'log10')
+
+amazondf %>%
+  ggplot(., aes(x = cnRatio, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+
+amazondf %>%
+  ggplot(., aes(x = SG_Sand_Content_0_100cm, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+
+amazondf %>%
+  ggplot(., aes(x = WorldClim2_WindSpeed_AnnualMean, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+amazondf %>%
+  ggplot(., aes(x = NDVI, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+
+
+```
+
+
+
+```{r}
+
+amazondf%>%
+  ggplot(., aes(x = CHELSA_Annual_Mean_Temperature, y = CHELSA_Annual_Precipitation, color = CHELSA_swb))+
+  geom_point()
+
+
+```
+
+
+
+
+```{r}
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = cooccurdf, aes(x = lon, y = lat, color = buttressfraction))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c(limits = c(0,0.5), oob = scales::squish, direction = -1)+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20), legend.position = 'none')
+
+
+```
+
+```{r}
+
+subdf <- amazondf %>%
+  filter(WWF_Biome %in% c(1))
+
+otherdf <- amazondf %>%
+  filter(! WWF_Biome %in% c(1,2,3,7))%>%
+  sample_n(nrow(subdf))
+
+
+bothdf <- rbind(subdf, otherdf)
+
+```
+
+
+```{r}
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = amazondf, aes(x = pixellon, y = pixellat, color = fraction))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c(limits = c(0,0.5), oob = scales::squish, direction = -1)+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20), legend.position = 'none')
+
+
+```
+
+```{r}
+
+subdf <- amazondf %>%
+  filter(pixellat>-50 & pixellat<=50)
+
+```
+
+
+```{r}
+amazondf %>%
+  filter(meanfraction>0)%>%
+  group_by(WWF_Biome)%>%
+  summarise(count = n())%>%
+  arrange(desc(count))%>%
+  ungroup()
+
+
+```
+
+
+```{r}
+
+nrow(amazondf[amazondf$WWF_Biome %in% c(1,2,3,7,14),])
+
+```
+
+```{r}
+
+amazondf %>%
+  filter(fraction>0)%>%
+  nrow()
+
+```
+
+
+
+```{r}
+tropdf <- amazondf %>%
+  #filter(fraction==0)%>%
+  filter(WWF_Biome %in% c(1,2,3,7))%>%
+  mutate(majorbiome = 'Tropical')
+
+
+
+
+nrow(tropdf)
+
+```
+
+
+
+
+
+```{r}
+set.seed(0)
+
+tempdf <- amazondf %>%
+  filter(WWF_Biome %in% c(4,5,8,12))%>%
+  sample_n(round(nrow(tropdf)*22/50))%>%
+  mutate(majorbiome = 'Temperate')
+
+nrow(tempdf)
+
+```
+
+
+```{r}
+set.seed(0)
+
+borealdf <- amazondf %>%
+  filter(WWF_Biome %in% c(6,10,11))%>%
+  #sample_n(round(nrow(tropdf)*21/50))%>%
+  mutate(majorbiome = 'Boreal')
+
+
+```
+
+
+```{r}
+set.seed(0)
+drydf <- amazondf %>%
+  filter(WWF_Biome %in% c(9,13))%>%
+  sample_n(round(nrow(tropdf)*7/50))%>%
+  mutate(majorbiome = 'Arid_and_other')
+
+nrow(drydf)
+```
+
+
+```{r}
+tropdf %>%
+  ggplot(., aes(x = fraction))+
+  geom_histogram()+
+  scale_x_continuous(trans = 'log1p')
+
+```
+
+```{R}
+alldf <- rbind(tropdf, tempdf, borealdf, drydf)
+
+alldf 
+
+#write_csv(alldf, 'C:\\Users\\haozh\\Desktop\\bpr\\subsampled_gfbi_bpr_20241022.csv')
+```
+
+```{r}
+
+amazondf %>%
+  filter(meanfraction>0)%>%
+  ggplot(., aes(x = meanfraction))+
+  geom_histogram(bins = 60)+
+  scale_x_continuous(trans = 'log')
+
+
+```
+
+
+```{r}
+amazondf %>%
+  filter(meanfraction == 1)
+
+
+```
+
+
+
+
+```{r}
+
+alldf <- alldf %>%
+  dplyr::select(matches(
+    'CHELSA|SG|Canopy|random|pixel|Earth|Depth|Fire|Human|Land|NDVI|Nitrogen|Olsen|Organic|PET|Popu|Tree|WWF|World|fraction|limitation|buttress'
+  ))%>%
+  mutate(longitude = pixellon,
+         latitude = pixellat)
+
+alldf <- alldf[complete.cases(alldf),]
+
+alldf <- alldf %>%
+  mutate(fold = (random%%10)+1)
+
+
+write_csv(alldf,'C:\\Users\\haozh\\Desktop\\buttress_root\\subsampled_buttress_comp_20250611.csv')
+```
+
+```{r}
+
+alldf %>%
+  #filter(meanfraction>0)%>%
+  group_by(fold)%>%
+  summarise(count = n())%>%
+  ungroup()
+
+
+```
+
+
+
+
+```{r}
+ggplot() + 
+  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#ffffff', color = '#bcbcbc', size = 0.5)+
+  geom_point(data = alldf, aes(x = pixellon, y = pixellat, color = fraction))+
+  theme_minimal()+
+  labs(x = 'Longitude', y = 'Latitude')+
+  scale_color_viridis_c(limits = c(0,0.5), oob = scales::squish, direction = -1)+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+```
+
+
+```{r}
+alldf <- alldf %>%
+  mutate(longitude = Longitude,
+         latitude = Latitude)
+
+
+write_csv(alldf, 'C:\\Users\\haozh\\Desktop\\buttress_root\\subsampled_buttress_pixel_aggregate_20250605.csv')
+
+
+```
+
+
+```{r}
+
+tallbuttress <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\tall_buttress_plots.csv')
+
+```
+
+
+```{r}
+
+allplots <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_plot_new_comp_20250827.csv')
+
+```
+
+
+
+```{r}
+
+regressionmatrix <- alldf %>%
+  #filter(PlotObservationID %in% tallbuttress$PlotObservationID)%>%
+  #filter( CHELSA_gdd10>40000 & CHELSA_swb>-500)%>%
+  #filter(meanfraction>0)%>%
+  #filter(WWF_Biome %in% c(1))%>%
+  dplyr::select(c(
+    CHELSA_Annual_Mean_Temperature,
+    #CHELSA_Min_Temperature_of_Coldest_Month,
+    #CHELSA_Precipitation_of_Driest_Month,
+    #CHELSA_Wind_max,
+    wind_gust_max,
+    CHELSA_Annual_Precipitation,
+    #CHELSA_Temperature_Annual_Range,
+    #CHELSA_Mean_Temperature_of_Wettest_Quarter,
+    #CHELSA_Annual_Precipitation,
+    #CHELSA_swb,
+    #CHELSA_npp,
+    #CHELSA_gdd10,
+    #CHELSA_Precipitation_Seasonality,
+    #CHELSA_Temperature_Seasonality,
+    #CHELSA_Temperature_Annual_Range,
+    Nitrogen,
+    OlsenP,
+    #np_limitation,
+    #cnRatio,
+    #NDVI,
+    SG_Soil_pH_H2O_0_100cm,
+    #EarthEnvTopoMed_Roughness,
+    #EarthEnvTopoMed_Elevation,
+    #CanopyHeight,
+    #PresentTreeCover,
+    #NDVI,
+    #EarthEnvTopoMed_Slope,
+    #PresentTreeCover,
+    #CanopyHeight,
+    SG_Silt_Content_0_100cm,
+    SG_Absolute_depth_to_bedrock,
+    DistanceToForestEdge,
+    #SG_Sand_Content_0_100cm,
+    #SG_Clay_Content_0_100cm,
+    #PET,
+    #Depth_to_Water_Table,
+    #SG_Clay_Content_0_100cm,
+    #SG_Silt_Content_0_100cm,
+    #WorldClim2_WindSpeed_AnnualMean,
+    #SG_Soil_pH_H2O_0_100cm,
+    meanfraction
+  ))
+
+regressionmatrix <- regressionmatrix[complete.cases(regressionmatrix),]
+
+```
+
+```{r}
+
+regressionmatrix %>%
+  filter(meanfraction>0)%>%
+  nrow()
+
+```
+
+
+```{r}
+HH::vif(regressionmatrix[,-ncol(regressionmatrix)])
+```
+
+```{R}
+cor.matrix <- cor(regressionmatrix[,1:(ncol(regressionmatrix)-1)], use = 'complete.obs', method = 'pearson')
+
+cor.dist <- abs(as.dist(cor.matrix))
+
+cor.cluster <- hclust(1-cor.dist)
+
+plot(cor.cluster)
+
+```
+
+```{r}
+
+regressionmatrix %>%
+  ggplot(., aes(x = wind_gust_max, y = meanfraction))+
+  geom_point(alpha= 0.1)+
+  geom_smooth(method = 'glm', method.args = list(family = binomial(link = 'cloglog')))+
+  geom_smooth(method = 'gam')+
+  geom_quantile(quantiles = c(0.9))
+
+
+
+
+
+regressionmatrix%>%
+  ggplot(., aes(x = OlsenP, y = -log1p(1-meanfraction)))+
+  geom_point(alpha = 0.1)+
+  geom_smooth(method = 'lm')
+```
+
+
+
+```{r}
+themodel0 <- glm(-log(2-meanfraction)~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) + scale(CHELSA_npp), data = regressionmatrix)
+
+
+
+themodel1 <- glm(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) + scale(CHELSA_npp) , data = regressionmatrix, family = binomial(link = 'cloglog'))
+
+themodel2 <- glm(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) + scale(CHELSA_npp) , data = regressionmatrix,, family = binomial(link = 'probit'))
+
+themodel3 <- glm(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) + scale(CHELSA_npp) , data = regressionmatrix,, family = binomial(link = 'logit'))
+
+gammodel <- gam(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) + scale(CHELSA_npp) , data = regressionmatrix,)
+
+AIC(themodel0, themodel1, themodel2, themodel3, gammodel)
+
+BIC(themodel0, themodel1, themodel2, themodel3, gammodel)
+
+```
+
+
+```{r}
+themodel0 <- glm(meanfraction~ scale(OlsenP)  +scale(SG_Soil_pH_H2O_0_100cm)  + scale(CHELSA_Wind_max) + scale(SG_Absolute_depth_to_bedrock) , data = regressionmatrix)
+
+
+
+themodel1 <- glm(meanfraction~ scale(OlsenP)  +scale(SG_Soil_pH_H2O_0_100cm)  + scale(CHELSA_Wind_max) + scale(SG_Absolute_depth_to_bedrock) , data = regressionmatrix, family = binomial(link = 'cloglog'))
+
+themodel2 <- glm(meanfraction~ scale(OlsenP)  +scale(SG_Soil_pH_H2O_0_100cm)  + scale(CHELSA_Wind_max) + scale(SG_Absolute_depth_to_bedrock), data = regressionmatrix,, family = binomial(link = 'probit'))
+
+themodel3 <- glm(meanfraction~ scale(OlsenP)  +scale(SG_Soil_pH_H2O_0_100cm)  + scale(CHELSA_Wind_max) + scale(SG_Absolute_depth_to_bedrock), data = regressionmatrix,, family = binomial(link = 'logit'))
+
+gammodel <- gam(meanfraction~ scale(OlsenP)  +scale(SG_Soil_pH_H2O_0_100cm)  + scale(CHELSA_Wind_max) + scale(SG_Absolute_depth_to_bedrock) , data = regressionmatrix,)
+
+AIC(themodel0, themodel1, themodel2, themodel3, gammodel)/BIC(themodel0, themodel1, themodel2, themodel3, gammodel)
+
+
+
+```
+
+
+```{r}
+
+ss <- summary(themodel1)
+
+
+
+modelsummary <- themodel1$coefficients
+
+
+ssd <- ss$coefficients
+
+
+ssd <- ssd[2:nrow(ssd),]
+
+
+
+ssd <- as.data.frame(ssd)
+
+
+items <- rownames(ssd)
+
+row.names(ssd) <- NULL
+
+ssd <- cbind(items, ssd)
+
+```
+
+```{r}
+
+names(ssd) <- c('items', 'Estimate', 'stderr', 'zvalue', 'pvalue')
+
+```
+
+
+
+
+```{r}
+
+ssd$items <- factor(ssd$items, levels = c(
+  
+  
+  'scale(Nitrogen)',
+  #'scale(SG_Clay_Content_0_100cm)',
+  'scale(OlsenP)',
+  'scale(SG_Silt_Content_0_100cm)',
+  
+  'scale(wind_gust_max)',
+  
+  "scale(SG_Absolute_depth_to_bedrock)",
+  'scale(SG_Soil_pH_H2O_0_100cm)',
+  'scale(CHELSA_swb)',
+  'scale(CHELSA_Annual_Precipitation)',
+  'scale(CHELSA_npp)',
+  'scale(CHELSA_Annual_Mean_Temperature)'
+  #'scale(CHELSA_Min_Temperature_of_Coldest_Month)'
+))
+
+ssd %>%
+ggplot(., aes(x = items, y = Estimate, color = Estimate/abs(Estimate)))+
+  #geom_line(aes(group = group, color = '#000000'),size = 1)+
+  geom_point(stat = 'identity',size = 3)+
+  geom_errorbar(aes(ymin = Estimate - 2*stderr, ymax = Estimate + 2*stderr ),width = 0,size = 0.5)+
+  #coord_cartesian(ylim = c(0,0.9))+
+  #theme_classic()+
+  coord_flip()+
+  scale_color_gradient(low = "#2166AC", high = "#B2182B")+
+  theme_classic()+
+  geom_abline(slope = 0, intercept = 0,linetype = 'dashed')+
+  labs(x = 'Variables', y = 'Effect')+
+  theme(legend.position = 'none',  axis.title.x = element_text(color = '#000000', size = 20), , axis.text.x = element_text(size = 20, colour = 'black'))
+
+
+
+
+```
+```{r}
+
+themodel <- lm(scale(-log(2-meanfraction))~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(CHELSA_Wind_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) + scale(CHELSA_npp), data = regressionmatrix)
+
+ss <- summary(themodel)
+
+
+
+ssd <- ss$coefficients
+
+
+ssd <- ssd[2:nrow(ssd),]
+
+
+
+
+ssd <- as.data.frame(ssd)
+
+
+items <- rownames(ssd)
+
+row.names(ssd) <- NULL
+
+ssd <- cbind(items, ssd)
+
+
+
+names(ssd) <- c('items', 'Estimate', 'stderr', 'zvalue', 'pvalue')
+
+
+
+ssd$items <- factor(ssd$items, levels = c(
+  'scale(Nitrogen)',
+  #'scale(SG_Clay_Content_0_100cm)',
+  'scale(OlsenP)',
+  'scale(SG_Silt_Content_0_100cm)',
+  
+  'scale(CHELSA_Wind_max)',
+  
+  "scale(SG_Absolute_depth_to_bedrock)",
+  'scale(SG_Soil_pH_H2O_0_100cm)',
+  'scale(CHELSA_swb)',
+  'scale(CHELSA_Annual_Precipitation)',
+  'scale(CHELSA_npp)',
+  'scale(CHELSA_Annual_Mean_Temperature)'
+))
+
+ssd %>%
+ggplot(., aes(x = items, y = Estimate, color = Estimate/abs(Estimate)))+
+  #geom_line(aes(group = group, color = '#000000'),size = 1)+
+  geom_point(stat = 'identity',size = 5)+
+  geom_errorbar(aes(ymin = Estimate - 2*stderr, ymax = Estimate + 2*stderr ),width = 0,size = 1)+
+  #coord_cartesian(ylim = c(0,0.9))+
+  #theme_classic()+
+  coord_flip()+
+  scale_color_gradient(low = "#2166AC", high = "#B2182B")+
+  theme_classic()+
+  geom_abline(slope = 0, intercept = 0,linetype = 'dashed')+
+  labs(x = 'Variables', y = 'Effect')+
+  theme(legend.position = 'none',  axis.title.x = element_text(color = '#000000', size = 20),axis.title.y = element_blank(),  axis.text.x = element_text(size = 20, colour = 'black'))
+
+
+
+
+```
+
+
+```{R}
+
+localH2O <- h2o.init(nthreads = 12, max_mem_size = '16g', ignore_config = TRUE)
+
+regmatrixh2o <- as.h2o(regressionmatrix)
+
+rf.params <- list(ntrees = 250,
+                  mtries = c(1:8),
+                  min_rows = c(1:20))
+
+search.criteria <- list(strategy = 'RandomDiscrete', max_models = 160, seed = 0, max_runtime_secs = 1200)
+
+```
+
+
+```{r}
+
+ddd <- h2o.automl(y = 'buttressfraction', training_frame =regmatrixh2o,
+                  nfolds = 10,
+                  keep_cross_validation_predictions = FALSE,
+                  keep_cross_validation_fold_assignment = FALSE,
+                  seed = 0,
+                  max_runtime_secs = 60)
+
+
+
+```
+```{r}
+
+regmatrixh2o$buttressbinary <- as.factor(regmatrixh2o$buttressbinary)
+
+rf_model<-h2o.randomForest(
+  y = 'fraction',
+  training_frame = regmatrixh2o,
+  ntrees = 400,
+  sample_rate = 0.632,
+  nfolds = 10,
+  fold_assignment = 'Modulo',
+  mtries = 3,
+  keep_cross_validation_predictions = TRUE,
+  balance_classes = TRUE,
+  seed = 0
+)
+
+```
+
+```{R}
+p1<-h2o.varimp_plot(rf_model)
+
+```
+
+See the R square to check the model performance.
+```{R}
+h2o.r2(rf_model)
+
+```
+
+```{r}
+h2o.auc(rf_model, xval = TRUE)
+
+h2o.performance(rf_model, xval = TRUE)
+
+```
+
+
+```{r}
+h2o.confusionMatrix(rf_model, xval = TRUE)
+
+```
+
+
+
+```{r}
+
+h2o.get_best_model(ddd, algorithm = 'any', criterion = 'RMSE')
+
+```
+
+
+
+
+```{R}
+rf.grid <- h2o.grid(algorithm = 'randomForest',
+                    y = 'meanfraction',
+                    grid_id = 'rf.grid',
+                    training_frame = regmatrixh2o,
+                    seed = 0,
+                    hyper_params = rf.params,
+                    sample_rate = 0.632,
+                    nfolds = 10,
+                    fold_assignment = 'AUTO',
+                    keep_cross_validation_predictions = TRUE,
+                    keep_cross_validation_fold_assignment = TRUE,
+                    search_criteria = search.criteria)
+
+
+```
+
+```{R}
+rf.grid.perf = h2o.getGrid(grid_id = 'rf.grid',
+                           sort_by = 'R2',
+                           decreasing = TRUE)
+
+head(rf.grid.perf@summary_table,10)
+
+```
+```{r}
+
+fff <- as.data.frame(regressionmatrix$meanfraction)
+
+for (i in 1:10) {
+  themodel <- h2o.getModel(rf.grid.perf@model_ids[[i]])
+  fff[,i+1] <- as.data.frame(h2o.cross_validation_holdout_predictions(themodel))
+}
+
+```
+
+```{r}
+fff$meanprediction = rowMeans(fff[,-1])
+
+```
+
+```{r}
+
+paletteForUse <- c('#FF0000',"#FDE725", "#AADC32", "#5DC863", "#27AD81", "#21908C", "#2C728E", "#3B528B", "#472D7B", "#440154")
+colors <-  colorRampPalette(paletteForUse)(160)
+
+
+fff$dens <- col2rgb(densCols(fff$`regressionmatrix$meanfraction`, fff$meanprediction))[1,]+1L
+fff$colors = colors[fff$dens]
+range(fff$dens)
+quantile(fff$dens,0.99)
+fff[fff$dens >158, 'colors'] = '#BEBEBE' # Here you have to check the 90% quantile of the column 'dens'
+
+
+```
+
+```{r}
+
+fff %>%
+  mutate(roundfrac = round(predict,1))%>%
+  ggplot(., aes(x = as.factor(roundfrac), y = `regressionmatrix$buttressbina`))+
+  geom_boxplot(outliers = FALSE, position = 'dodge')
+  #geom_point(color = fff$colors)+
+  #geom_smooth(method = 'lm')+
+  #coord_cartesian(xlim = c(0,1), ylim = c(0,1))+
+  #coord_flip()
+
+```
+
+
+```{r}
+
+fff %>%
+  #mutate(roundfrac = round(predict,1))%>%
+  ggplot(., aes(x = meanprediction, y = `regressionmatrix$meanfraction`))+
+  #geom_boxplot(outliers = FALSE, position = 'dodge')
+  geom_point(color = fff$colors)+
+  geom_smooth(method = 'lm')+
+  coord_cartesian(xlim = c(0,0.6), ylim = c(0,0.6))+
+  geom_abline(slope = 1, intercept = 0)
+  #coord_flip()
+
+```
+
+
+```{R}
+
+for(i in 1:10){
+  rfmodel <- h2o.getModel(rf.grid.perf@model_ids[[i]])
+  
+  p1<- h2o.varimp_plot(rfmodel)
+  
+  print(p1)
+  
+  varip <- h2o.varimp(rfmodel)
+  
+  varip
+  
+  library(readr)
+  
+  #write_csv(varip, paste0('C:\\Users\\haozh\\Desktop\\buttress_root\\bestmodels\\bestmodel_',i,'_varip_cooccurr_buttress_20241120.csv'))
+  
+  
+}
+
+```
+
+
+```{R}
+rf_model <- h2o.getModel(rf.grid.perf@model_ids[[1]])
+
+shapsummary <- h2o.shap_summary_plot(rf_model, regmatrixh2o, sample_size = nrow(regressionmatrix))
+
+shapsummary
+
+
+```
+
+
+```{R}
+shapdata <- shapsummary$data
+
+```
+
+
+```{R}
+h2o.shutdown(prompt = FALSE)
+
+```
+
+
+```{R}
+
+write_csv(shapdata, 'C:\\Users\\haozh\\Desktop\\buttress_root\\shapdata_triplot_20241210.csv')
+
+```
+
+```{r}
+
+shapdata <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\shapdata_triplot_20241210.csv')
+
+```
+
+
+
+```{R}
+shapdata$original_value <- as.numeric(shapdata$original_value)
+
+shapdata %>%
+  dplyr::group_by(feature) %>%
+  dplyr::summarise(count = n()) %>%
+  ungroup()
+
+
+plots = shapdata %>%
+  group_by(feature) %>%
+  group_map(~ggplot(data = ., aes(x = original_value, y = contribution))+
+              geom_point(alpha = 0.5)+
+              geom_smooth(method='loess')+
+              geom_hline(yintercept = 0))
+
+```
+```{r}
+
+meanshap <- shapdata %>%
+  group_by(feature)%>%
+  dplyr::summarise(
+    meanabs = mean(abs(contribution)),
+    medianabs = median(abs(contribution)),
+    lowerlimit = quantile(contribution, 0.025),
+    upperlimit = quantile(contribution, 0.975),
+    median = median(contribution)
+  )%>%
+  ungroup()
+ 
+
+
+
+```
+
+
+```{r}
+
+
+meanshap$feature <- factor(meanshap$feature, levels = c(
+                                                        
+                                                        'DistanceToForestEdge',
+                                                        'Nitrogen', 
+                                                        
+                                                        #'CHELSA_swb',
+                                                        
+                                                       
+                                                       'SG_Absolute_depth_to_bedrock',
+                                                        
+                                                        
+                                                        'OlsenP',
+                                                       'SG_Silt_Content_0_100cm',
+                                                       'SG_Soil_pH_H2O_0_100cm',
+                                                        'wind_gust_max',
+                                                        'CHELSA_Annual_Precipitation',
+                                                        #'CHELSA_gdd10',
+                                                        #'CHELSA_npp',
+                                                        'CHELSA_Annual_Mean_Temperature'
+                                                        
+                                                        
+                                                        #'CHELSA_Min_Temperature_of_Coldest_Month'
+                                                        ))
+
+
+meanshap %>%
+  ggplot(., aes(x = feature, y = medianabs))+
+  geom_col()+
+  geom_errorbar(aes(ymin = lowerlimit, ymax = upperlimit), size = 1)+
+  #geom_col()+
+  labs(x = 'Variables', y = 'Mean absolute SHAP value')+
+  coord_flip()+
+  theme_classic()+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text.x = element_text(color = '#000000', size = 20))
+
+
+```
+
+
+```{r}
+shapdata$feature <- factor(shapdata$feature, levels = c(
+                                                        
+                                                        
+                                                        
+                                                        
+                                                        
+                                                        'OlsenP',
+                                                        
+                                                        'Nitrogen', 
+                                                        'SG_Absolute_depth_to_bedrock',
+                                                        'DistanceToForestEdge',
+                                                       'SG_Silt_Content_0_100cm',
+                                                       'SG_Soil_pH_H2O_0_100cm',
+                                                       
+                                                        'wind_gust_max',
+                                                        'CHELSA_Annual_Precipitation',
+                                                        #'CHELSA_gdd10',
+                                                        #'CHELSA_npp',
+                                                        'CHELSA_Annual_Mean_Temperature'
+                                                        
+                                                        
+                                                        #'CHELSA_Min_Temperature_of_Coldest_Month'
+                                                        ))
+
+
+shapdata %>%
+  mutate(abscont = abs(contribution))%>%
+  ggplot(., aes(x = feature, y = abscont))+
+  stat_summary(fun = mean, geom = 'bar')+
+  stat_summary(fun.data = 'mean_cl_boot', geom = 'errorbar',size = 1, width = 0.6)+
+  labs(x = 'Variables', y = 'Mean absolute SHAP value')+
+  coord_flip()+
+  theme_classic()+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text.x = element_text(color = '#000000', size = 20))
+
+
+```
+
+
+
+```{R}
+ppx<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'wind_gust_max') %>%
+  group_map(~ggplot(data = ., aes(x = original_value, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.4)+
+              labs(x = 'Wind gust (m/s)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              #scale_x_continuous(trans = 'log10')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+ppy<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'DistanceToForestEdge') %>%
+  group_map(~ggplot(data = ., aes(x = original_value, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.4)+
+              labs(x = 'Distance to forest edge (meters)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              scale_x_continuous(trans = 'log1p')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+pp0<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'CHELSA_npp') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/10, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.4)+
+              labs(x = 'Potential NPP', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              #scale_x_continuous(trans = 'log10')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+pp1<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'CHELSA_gdd10') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/10, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.4)+
+              labs(x = 'Growing degree day length (\u00B0C)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              #scale_x_continuous(trans = 'log10')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+
+
+pp<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'CHELSA_Annual_Mean_Temperature') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/10, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.4)+
+              labs(x = 'Annual mean temperature (\u00B0C)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              #scale_x_continuous(trans = 'log10')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+p<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'CHELSA_swb') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/10, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.7)+
+              labs(x = 'Site water balance', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              #scale_x_continuous(trans = 'log10')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+p0 <- shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'OlsenP') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/10, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.7)+
+              labs(x = 'Phosphorus availability (mg/kg)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              scale_x_continuous(trans = 'log1p')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+
+p3<- shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'CHELSA_Annual_Precipitation') %>%
+  group_map(~ggplot(data = ., aes(x = original_value, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.7)+
+              labs(x = 'Annual precipitation (mm)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              scale_x_continuous(trans = 'sqrt')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+
+p1<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'CHELSA_Min_Temperature_of_Coldest_Month') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/10, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.7)+
+              labs(x = 'Min temperature of coldest month (\u00B0C)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+p2<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'CHELSA_Wind_max') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/1000, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.6)+
+              labs(x = 'wind speed max （m/s）', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              scale_x_continuous(trans = 'sqrt')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+p5<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'Nitrogen') %>%
+  group_map(~ggplot(data = ., aes(x = original_value, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.9)+
+              labs(x = 'Soil nitrogen content (cg/kg)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              scale_x_continuous(trans = 'log10')+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+
+
+p7<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'SG_Silt_Content_0_100cm') %>%
+  group_map(~ggplot(data = ., aes(x = original_value, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.7)+
+              labs(x = 'Soil silt content (%)', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+              #scale_x_continuous(trans = 'log10'))
+
+
+p4<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'SG_Soil_pH_H2O_0_100cm') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/10, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+              geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.7)+
+              labs(x = 'Soil pH', y = 'Contribution')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+              #scale_x_continuous(trans = 'log10'))
+
+
+p6<-shapdata %>%
+  group_by(feature) %>%
+  filter(feature == 'SG_Absolute_depth_to_bedrock') %>%
+  group_map(~ggplot(data = ., aes(x = original_value/100, y = contribution))+
+              geom_point(alpha = 0.1, color = '#1d3557', size  = 3)+
+             geom_smooth(method = 'loess', color = '#000000', size = 1, se = TRUE, span = 0.7)+
+              labs(x = 'Soil absolute depth to bedrock （cm）', y = 'Contribution')+
+              scale_x_continuous(trans = 'sqrt')+
+              geom_hline(yintercept = 0, linetype = 'dashed')+
+              coord_cartesian(ylim = c(-0.07,0.15))+
+              theme_classic()+
+              theme(axis.title.x = element_text(size = 20, color = '#000000'), axis.title.y = element_blank(), axis.text = element_text(size = 20, color = '#000000')))
+  
+
+```
+
+
+
+```{r}
+
+library(ggpubr)
+
+ggarrange(pp[[1]], p3[[1]], ppx[[1]],
+          p7[[1]],p4[[1]], p5[[1]], 
+          p0[[1]],ppy[[1]],p6[[1]],
+            
+          ncol = 3,
+          nrow = 3,
+          labels = c('A', 'B', 'C',
+                     'D', 'E', 'F',
+                     'G', 'H', 'I')
+          )
+
+```
+
+
+```{r}
+library(ggpubr)
+ggarrange(pp[[1]], p3[[1]],
+          p[[1]], p5[[1]],p7[[1]],
+          ncol = 2, nrow = 3,
+          labels = c('A', 'B', 'C', 'D', 'E'))
+
+
+```
+
+```{r}
+library(ggpubr)
+ggarrange(
+  ppx[[1]],
+  p6[[1]],
+  p0[[1]],
+  p4[[1]],
+  nrow = 4,
+  ncol = 1
+)
+
+```
+
+
+
+
+```{r}
+library(ggpubr)
+
+ggarrange(p0[[1]], p1[[1]], p2[[1]],
+          p3[[1]], p4[[1]],
+          p6[[1]], p5[[1]],
+          p7[[1]],
+          ncol = 2, nrow = 4,
+          labels = c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'))
+
+
+
+
+ggarrange(p1[[1]], p2[[1]],
+          p9[[1]], p4[[1]],
+          p3[[1]], p5[[1]],
+          p6[[1]], p7[[1]],
+          p8[[1]],
+          ncol = 3, nrow = 3,
+          labels = c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'))
+
+
+```
+
+
+
+
+```{r}
+
+regressionmatrix %>%
+  ggplot(., aes(x = buttressfraction))+
+  geom_histogram(bins = 80)
+
+```
+
+
+```{r}
+
+cooccurdf %>%
+  ggplot(.,aes(x = CHELSA_Annual_Precipitation))+
+  geom_histogram()
+
+
+cooccurdf %>%
+  #filter(WorldClim2_WindSpeed_AnnualMean<2.5)%>%
+  ggplot(., aes(x = WorldClim2_WindSpeed_AnnualMean, y = buttressfraction))+
+  geom_point()+
+  geom_smooth()
+
+```
+
+
+
+
+
+
+```{r}
+
+# Assuming p is a vector of probabilities
+p <- c(0.1, 0.3,0.5, 0.7,0.9,1)  # Example probabilities
+cloglog_values <- log(-log(1 - p))
+cloglog_values
+
+
+
+
+```
+
+
