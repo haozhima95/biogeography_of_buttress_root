@@ -4,6 +4,10 @@ output: html_document
 date: "2025-06-11"
 ---
 
+#### This script is used to down-sample the global buttress root dataset by biome area. 
+
+Load packages
+
 ```{r}
 
 library(dplyr)
@@ -14,18 +18,18 @@ library(readr)
 
 ```
 
-
+Load the dataset
 
 ```{r}
 
-amazondf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_plot_pixel_aggregate_20251219.csv');
+amazondf <- read.csv('buttress_plot_pixel_aggregate_20251219.csv');
 
 names(amazondf)
 
 
-
-#cooccurdf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\cooccuring_plots_comp_20241210.csv')
 ```
+
+
 
 ```{r}
 amazondf <- amazondf %>%
@@ -39,19 +43,7 @@ amazondf <- amazondf %>%
 amazondf <- amazondf[complete.cases(amazondf),]
 ```
 
-
-```{r}
-amazondf %>%
-  filter(meanfraction>0)%>%
-  nrow()
-amazondf %>%
-  filter(buttressbinary == 0)%>%
-  nrow()
-
-
-```
-
-
+Loop on random seeds to downsample the full dataset. 
 
 ```{r}
 
@@ -65,25 +57,16 @@ tropdf <- amazondf %>%
   mutate(majorbiome = 'Tropical')
 
 
-
-
-
-
-
 tempdf <- amazondf %>%
   filter(WWF_Biome %in% c(4,5,8,12))%>%
   sample_n(round(nrow(tropdf)*22/50))%>%
   mutate(majorbiome = 'Temperate')
 
 
-
-
 borealdf <- amazondf %>%
   filter(WWF_Biome %in% c(6,10,11))%>%
   #sample_n(round(nrow(tropdf)*21/50))%>%
   mutate(majorbiome = 'Boreal')
-
-
 
 
 drydf <- amazondf %>%
@@ -95,37 +78,23 @@ drydf <- amazondf %>%
 alldf <- rbind(tropdf, tempdf, borealdf, drydf)
 
 
-
-
 alldf <- alldf %>%
   mutate(fold = (random%%10)+1,
          seed = i)
 
-
-write_csv(alldf,paste0('C:\\Users\\haozh\\Desktop\\buttress_root\\data\\subsample\\subsampled_buttress_comp_seed_',i,'_20251219.csv'))
+write_csv(alldf,paste0('subsampled_buttress_comp_seed_',i,'_20251219.csv'))
 
 }
 ```
 
-
-
-
-```{r}
-
-setwd('C:\\Users\\haozh\\Desktop\\buttress_root\\data\\subsample')
-
-files <- list.files(pattern = '\\_20251219.csv')
-
-```
+Aggregate the files
 
 
 ```{r}
-setwd('C:\\Users\\haozh\\Desktop\\buttress_root\\data\\subsample')
+setwd('')
 alltables <- lapply(files, read.csv, header = TRUE)
 
-
 ```
-
 
 ```{r}
 
@@ -135,9 +104,7 @@ alldf <- do.call(rbind, alltables)
 
 
 ```{r}
-
-write_csv(alldf, 'C:\\Users\\haozh\\Desktop\\buttress_root\\data\\all_subsample_buttress_comp_20251219.csv')
-
+write_csv(alldf, 'all_subsample_buttress_comp_20251219.csv')
 
 ```
 
