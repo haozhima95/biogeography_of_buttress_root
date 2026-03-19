@@ -1,0 +1,671 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-08-06"
+---
+
+```{r}
+
+library(ggplot2)
+
+library(dplyr)
+
+library(readr)
+
+library(mgcv)
+
+```
+
+```{r}
+
+amazondf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_plot_pixel_aggregate_20251219.csv');
+
+#names(amazondf)
+
+#cooccurdf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\cooccuring_plots_comp_20241210.csv')
+```
+
+
+
+```{r}
+amazondf <- amazondf %>%
+   dplyr::select(matches(
+    'CHELSA|SG|Canopy|random|pixel|Earth|Depth|Fire|Land|Nitrogen|Olsen|Organic|PET|WWF|World|fraction|buttress|wind|Distance|Aridity'
+  ))%>%
+  mutate(longitude = pixellon,
+         latitude = pixellat)
+
+
+amazondf <- amazondf[complete.cases(amazondf),]
+```
+
+```{r}
+tropdf <- amazondf %>%
+  #filter(fraction==0)%>%
+  filter(WWF_Biome %in% c(1,2,3,7))%>%
+  mutate(majorbiome = 'Tropical')
+
+
+
+
+nrow(tropdf)
+
+```
+
+
+
+
+
+```{r}
+set.seed(0)
+
+tempdf <- amazondf %>%
+  filter(WWF_Biome %in% c(4,5,8,12))%>%
+  sample_n(round(nrow(tropdf)*22/50))%>%
+  mutate(majorbiome = 'Temperate')
+
+nrow(tempdf)
+
+```
+
+
+```{r}
+set.seed(0)
+
+borealdf <- amazondf %>%
+  filter(WWF_Biome %in% c(6,10,11))%>%
+  #sample_n(round(nrow(tropdf)*21/50))%>%
+  mutate(majorbiome = 'Boreal')
+
+
+```
+
+
+```{r}
+set.seed(0)
+drydf <- amazondf %>%
+  filter(WWF_Biome %in% c(9,13))%>%
+  sample_n(round(nrow(tropdf)*7/50))%>%
+  mutate(majorbiome = 'Arid_and_other')
+
+nrow(drydf)
+
+```
+
+
+```{r}
+tropdf %>%
+  ggplot(., aes(x = fraction))+
+  geom_histogram()+
+  scale_x_continuous(trans = 'log1p')
+
+```
+
+```{R}
+alldf <- rbind(tropdf, tempdf, borealdf, drydf)
+
+alldf 
+
+#write_csv(alldf, 'C:\\Users\\haozh\\Desktop\\bpr\\subsampled_gfbi_bpr_20241022.csv')
+```
+
+```{r}
+
+regressionmatrix <- alldf %>%
+  #filter( CHELSA_gdd10>40000 & CHELSA_swb>-500)%>%
+  #filter(meanfraction>0)%>%
+  filter(WWF_Biome %in% c(1))%>%
+  dplyr::select(c(
+    CHELSA_Annual_Mean_Temperature,
+    wind_gust_max,
+    #CHELSA_Min_Temperature_of_Coldest_Month,
+    #CHELSA_Precipitation_of_Driest_Month,
+    #CHELSA_Wind_max,
+    CHELSA_Annual_Precipitation,
+    #CHELSA_Temperature_Annual_Range,
+    #CHELSA_Mean_Temperature_of_Wettest_Quarter,
+    #CHELSA_Annual_Precipitation,
+    CHELSA_swb,
+    DistanceToForestEdge,
+    #CHELSA_npp,
+    #CHELSA_gdd10,
+    #CHELSA_Precipitation_Seasonality,
+    #CHELSA_Temperature_Seasonality,
+    #CHELSA_Temperature_Annual_Range,
+    Nitrogen,
+    OlsenP,
+    #np_limitation,
+    #cnRatio,
+    #NDVI,
+    SG_Soil_pH_H2O_0_100cm,
+    #EarthEnvTopoMed_Roughness,
+    #EarthEnvTopoMed_Elevation,
+    #CanopyHeight,
+    #PresentTreeCover,
+    #NDVI,
+    #EarthEnvTopoMed_Slope,
+    #PresentTreeCover,
+    #CanopyHeight,
+    SG_Silt_Content_0_100cm,
+    SG_Absolute_depth_to_bedrock,
+    #SG_Sand_Content_0_100cm,
+    #SG_Clay_Content_0_100cm,
+    #PET,
+    #Depth_to_Water_Table,
+    #SG_Clay_Content_0_100cm,
+    #SG_Silt_Content_0_100cm,
+    #WorldClim2_WindSpeed_AnnualMean,
+    #SG_Soil_pH_H2O_0_100cm,
+    meanfraction
+  ))
+
+regressionmatrix <- regressionmatrix[complete.cases(regressionmatrix),]
+
+```
+
+```{r}
+themodel0 <- glm(-log(2-meanfraction)~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) +  scale(wind_gust_max*SG_Soil_pH_H2O_0_100cm), data = regressionmatrix)
+
+
+
+themodel1 <- glm(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) + scale(wind_gust_max*SG_Soil_pH_H2O_0_100cm), data = regressionmatrix, family = binomial(link = 'cloglog'))
+
+themodel2 <- glm(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) , data = regressionmatrix,, family = binomial(link = 'probit'))
+
+themodel3 <- glm(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb) , data = regressionmatrix,, family = binomial(link = 'logit'))
+
+gammodel <- gam(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  + scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(CHELSA_swb)  , data = regressionmatrix,)
+
+AIC(themodel0, themodel1, themodel2, themodel3, gammodel)
+
+BIC(themodel0, themodel1, themodel2, themodel3, gammodel)
+
+```
+
+```{r}
+
+ss <- summary(themodel1)
+
+
+
+modelsummary <- themodel1$coefficients
+
+
+ssd <- ss$coefficients
+
+
+ssd <- ssd[2:nrow(ssd),]
+
+
+
+ssd <- as.data.frame(ssd)
+
+
+items <- rownames(ssd)
+
+row.names(ssd) <- NULL
+
+ssd <- cbind(items, ssd)
+
+```
+
+```{r}
+
+names(ssd) <- c('items', 'Estimate', 'stderr', 'zvalue', 'pvalue')
+
+```
+
+
+
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+
+
+
+```{r}
+
+ssd$items <- factor(ssd$items, levels = c(
+  
+  
+  'scale(Nitrogen)',
+  #'scale(SG_Clay_Content_0_100cm)',
+  'scale(OlsenP)',
+  'scale(CHELSA_swb)',
+  'scale(SG_Silt_Content_0_100cm)',
+  
+  
+  
+  "scale(SG_Absolute_depth_to_bedrock)",
+  'scale(SG_Soil_pH_H2O_0_100cm)',
+  'scale(wind_gust_max)',
+  'scale(CHELSA_Annual_Precipitation)',
+  'scale(CHELSA_npp)',
+  'scale(CHELSA_Annual_Mean_Temperature)'
+  #'scale(CHELSA_Min_Temperature_of_Coldest_Month)'
+))
+
+ssd %>%
+ggplot(., aes(x = items, y = Estimate, color = Estimate/abs(Estimate)))+
+  #geom_line(aes(group = group, color = '#000000'),size = 1)+
+  geom_point(stat = 'identity',size = 3)+
+  geom_errorbar(aes(ymin = Estimate - 2*stderr, ymax = Estimate + 2*stderr ),width = 0,size = 0.5)+
+  #coord_cartesian(ylim = c(0,0.9))+
+  #theme_classic()+
+  coord_flip()+
+  scale_color_gradient(low = "#2166AC", high = "#B2182B")+
+  theme_classic()+
+  geom_abline(slope = 0, intercept = 0,linetype = 'dashed')+
+  labs(x = 'Variables', y = 'Effect')+
+  theme(legend.position = 'none',  axis.title.x = element_text(color = '#000000', size = 20), , axis.text.x = element_text(size = 20, colour = 'black'))
+
+
+
+
+```
+```{r}
+
+ssd
+
+
+```
+
+
+```{r}
+for (i in 1:100) {
+  
+  set.seed(i)
+  subdf <- regressionmatrix%>%
+    sample_n(round(0.1*nrow(regressionmatrix)))
+  
+  themodel1 <- glm(meanfraction~ scale(Nitrogen)+scale(SG_Silt_Content_0_100cm) + scale(OlsenP) + scale(CHELSA_Annual_Precipitation) +scale(SG_Soil_pH_H2O_0_100cm)+scale(CHELSA_Annual_Mean_Temperature)  +scale(wind_gust_max) + scale(SG_Absolute_depth_to_bedrock) + scale(DistanceToForestEdge) 
+                     #scale(SG_Absolute_depth_to_bedrock*wind_gust_max) + 
+                     #scale(SG_Soil_pH_H2O_0_100cm*OlsenP)+
+                     #scale(SG_Soil_pH_H2O_0_100cm*Nitrogen)
+                     , data = subdf, family = binomial(link = 'cloglog'))
+
+  
+  ss <- summary(themodel1)
+
+
+
+modelsummary <- themodel1$coefficients
+
+
+ssd <- ss$coefficients
+
+
+ssd <- ssd[2:nrow(ssd),]
+
+
+
+ssd <- as.data.frame(ssd)
+
+
+items <- rownames(ssd)
+
+row.names(ssd) <- NULL
+
+ssd <- cbind(items, ssd)
+names(ssd) <- c('items', 'Estimate', 'stderr', 'zvalue', 'pvalue')
+
+ssd <- ssd %>%
+  mutate(seed = i)
+  
+write_csv(ssd, paste0('C:\\Users\\haozh\\Desktop\\buttress_root\\lmcoef\\lmcoefs_subsampleall_seed',i,'.csv'))
+
+}
+
+
+```
+
+
+```{r}
+
+filelist <- list.files(path = 'C:\\Users\\haozh\\Desktop\\buttress_root\\lmcoef', pattern = "\\.csv", full.names = TRUE)
+
+allsubs <-do.call(bind_rows,
+          lapply(filelist, read.csv))
+
+```
+
+
+```{r}
+
+allsubs$items <- factor(allsubs$items, levels = c(
+  
+  
+  
+  #'scale(SG_Clay_Content_0_100cm)',
+  'scale(OlsenP)',
+  'scale(Nitrogen)',
+  #'scale(SG_Soil_pH_H2O_0_100cm * Nitrogen)',
+  #'scale(SG_Soil_pH_H2O_0_100cm * OlsenP)',
+  #'scale(SG_Absolute_depth_to_bedrock * wind_gust_max)',
+  
+  
+  "scale(SG_Absolute_depth_to_bedrock)",
+  "scale(DistanceToForestEdge)",
+  'scale(SG_Silt_Content_0_100cm)',
+  'scale(SG_Soil_pH_H2O_0_100cm)',
+  'scale(wind_gust_max)',
+  'scale(CHELSA_Annual_Precipitation)',
+  #'scale(CHELSA_npp)',
+  'scale(CHELSA_Annual_Mean_Temperature)'
+))
+
+allsubs %>%
+  ggplot(., aes(x = items, y = Estimate))+
+  stat_summary(fun.data = 'mean_cl_boot', size = 1, linewidth = 1)+
+  coord_flip()+
+  scale_color_gradient(low = "#2166AC", high = "#B2182B")+
+  theme_classic()+
+  geom_abline(slope = 0, intercept = 0,linetype = 'dashed')+
+  labs(x = 'Variables', y = 'Effect')+
+  theme(legend.position = 'none',  axis.title.x = element_text(color = '#000000', size = 20), , axis.text.x = element_text(size = 20, colour = 'black'), , axis.title.y = element_blank())
+
+
+
+```
+```{r}
+#themodel0 <- glm(-log(2-meanfraction)~ scale(CHELSA_Annual_Mean_Temperature), data = regressionmatrix)
+
+
+
+themodel1 <- glm(meanfraction~ scale(wind_gust_max)  , data = regressionmatrix, family = binomial(link = 'cloglog'))
+
+themodel2 <- glm(meanfraction~ scale(wind_gust_max), data = regressionmatrix,, family = binomial(link = 'probit'))
+
+themodel3 <- glm(meanfraction~ scale(wind_gust_max) , data = regressionmatrix,, family = binomial(link = 'logit'))
+
+#gammodel <- gam(meanfraction~ scale(CHELSA_Annual_Mean_Temperature) , data = regressionmatrix,)
+
+AIC( themodel1, themodel2, themodel3)
+
+BIC(themodel1, themodel2, themodel3)
+
+```
+```{r}
+summary(themodel1)
+
+
+```
+
+
+```{r}
+formlist <- c(
+  'meanfraction~scale(CHELSA_Annual_Mean_Temperature)',
+  #'meanfraction~scale(CHELSA_npp)',
+  'meanfraction~scale(CHELSA_Annual_Precipitation)',
+  'meanfraction ~ scale(CHELSA_Annual_Mean_Temperature * CHELSA_Annual_Precipitation)',
+  'meanfraction~scale(wind_gust_max)',
+  'meanfraction~scale(SG_Soil_pH_H2O_0_100cm)',
+  'meanfraction~scale(SG_Silt_Content_0_100cm)',
+  'meanfraction~scale(SG_Absolute_depth_to_bedrock)',
+  'meanfraction~scale(SG_Absolute_depth_to_bedrock * wind_gust_max)',
+  'meanfraction~scale(SG_Soil_pH_H2O_0_100cm * Nitrogen)',
+  'meanfraction~scale(SG_Soil_pH_H2O_0_100cm * OlsenP)',
+  #'meanfraction~scale(CHELSA_swb)',
+  'meanfraction~scale(DistanceToForestEdge)',
+  'meanfraction~scale(OlsenP)',
+  'meanfraction~scale(Nitrogen)'
+)
+
+
+
+```
+
+
+```{r, warning=FALSE}
+
+for(j in formlist){
+
+for (i in 101:200) {
+  
+  set.seed(i)
+  subdf <- regressionmatrix%>%
+    sample_n(round(0.1*nrow(regressionmatrix)))
+  
+  themodel1 <- glm(j , data = subdf, family = binomial(link = 'cloglog'))
+
+  
+  ss <- summary(themodel1)
+
+itemname = substr(j,14,nchar(j))
+itemname = gsub("\\*", "x", itemname)
+
+modelsummary <- themodel1$coefficients
+
+
+ssd <- ss$coefficients
+ssd <- as.data.frame(ssd)
+
+ssd <- ssd[2:nrow(ssd),]
+
+
+
+ssd <- as.data.frame(ssd)
+
+
+#ssd <- t(ssd)
+
+items <- j
+
+row.names(ssd) <- NULL
+
+ssd <- cbind(items, ssd)
+names(ssd) <- c('items','Estimate', 'stderr', 'zvalue', 'pvalue')
+
+ssd <- ssd %>%
+  mutate(seed = i)
+  
+write_csv(ssd, paste0('C:\\Users\\haozh\\Desktop\\buttress_root\\lm_uni\\unilmcoefs_subsampleall_',itemname,'_seed',i,'.csv'))
+
+}
+}
+
+
+
+
+```
+
+
+```{r}
+
+filelist <- list.files(path = 'C:\\Users\\haozh\\Desktop\\buttress_root\\lm_uni', pattern = "\\.csv", full.names = TRUE)
+
+allsubs <-do.call(bind_rows,
+          lapply(filelist, read.csv))
+
+```
+
+```{r}
+
+allsubs$items <- factor(allsubs$items, levels = c(
+
+  
+  
+  'meanfraction~scale(OlsenP)',
+  'meanfraction~scale(Nitrogen)',
+  'meanfraction~scale(SG_Absolute_depth_to_bedrock)',
+  'meanfraction~scale(DistanceToForestEdge)',
+  
+  'meanfraction~scale(SG_Soil_pH_H2O_0_100cm * OlsenP)',
+  'meanfraction~scale(SG_Soil_pH_H2O_0_100cm * Nitrogen)',
+  'meanfraction~scale(SG_Absolute_depth_to_bedrock * wind_gust_max)',
+  #'meanfraction~scale(CHELSA_swb)',
+  
+  'meanfraction~scale(SG_Silt_Content_0_100cm)',
+  'meanfraction~scale(SG_Soil_pH_H2O_0_100cm)',
+  'meanfraction~scale(wind_gust_max)',
+  'meanfraction ~ scale(CHELSA_Annual_Mean_Temperature * CHELSA_Annual_Precipitation)',
+  'meanfraction~scale(CHELSA_Annual_Precipitation)',
+  'meanfraction~scale(CHELSA_Annual_Mean_Temperature)'
+))
+
+allsubs %>%
+  ggplot(., aes(x = items, y = Estimate))+
+  stat_summary(fun.data = 'mean_cl_boot', size = 1, linewidth = 1)+
+  coord_flip()+
+  scale_color_gradient(low = "#2166AC", high = "#B2182B")+
+  theme_classic()+
+  geom_abline(slope = 0, intercept = 0,linetype = 'dashed')+
+  labs(x = 'Variables', y = 'Effect')+
+  theme(legend.position = 'none',  axis.title.x = element_text(color = '#000000', size = 20), , axis.text.x = element_text(size = 20, colour = 'black'))
+
+
+
+```
+
+
+```{r}
+
+regressionmatrix %>%
+  ggplot(., aes(x = wind_gust_max, y = meanfraction))+
+  geom_point()+
+  geom_smooth(method = 'glm', method.args = list(family = 'binomial'))
+
+```
+
+```{r}
+
+regressionmatrix %>%
+  mutate(
+    depthcat = case_when(SG_Absolute_depth_to_bedrock > 7000 ~ 'high',
+                         .default = 'low')
+  )%>%
+  ggplot(., aes(x = wind_gust_max, y = meanfraction, group = depthcat, color = depthcat))+
+  #ggplot(., aes(x = wind_gust_max, y = meanfraction, color = SG_Absolute_depth_to_bedrock/100))+
+  geom_point()+
+  #geom_smooth()+
+  scale_x_continuous(trans = 'sqrt')+
+  geom_smooth(method = 'glm', method.args = list(family = 'binomial'))+
+  scale_color_manual(values = c('#000000', '#d8b365'))+
+  labs(x = 'Maximum wind gust speed (m/s)', y = 'Buttress root fraction (%)')+
+  theme_classic()+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20), legend.position = 'none')
+  
+
+```
+```{r}
+# Sample data
+
+
+# Define breaks
+breaks <- seq(3, 24, by = 1) # Define intervals (e.g., intervals of size 10)
+
+# Generate labels programmatically
+labels <- paste(head(breaks, -1), "-", tail(breaks, -1), sep = "")
+
+# Apply grouping with dynamic labels
+regressionmatrix$interval_group <- cut(regressionmatrix$wind_gust_max, breaks = breaks, labels = labels, include.lowest = TRUE)
+
+```
+
+```{r}
+
+
+
+regressionmatrix %>%
+  filter(!is.na(interval_group))%>%
+  mutate(
+    depthcat = case_when(SG_Absolute_depth_to_bedrock > 7500 ~ 'high',
+                         .default = 'low')
+  )%>%
+  ggplot(., aes(x = interval_group, y = meanfraction, group = as.factor(depthcat), color = as.factor(depthcat)))+
+  labs(x = 'Maximum wind gust speed (m/s)', y = 'Buttress root fraction (%)')+
+  stat_summary(fun.data = 'mean_cl_boot', size = 0.5)+
+  stat_summary(fun = mean, geom = 'line', size = 1)+
+  scale_color_manual(values = c('#000000', '#d8b365'))+
+  #coord_cartesian(ylim = c(0,60))+
+  theme(axis.text.x = element_text(angle = 90, size = 20), axis.text.y = element_text(size = 20), axis.title = element_text(size = 20))
+
+
+```
+
+
+
+```{r}
+
+
+summary(glm(meanfraction~ scale(wind_gust_max)  , data = regressionmatrix %>% filter(SG_Absolute_depth_to_bedrock<=7000), family = binomial(link = 'cloglog')))
+
+```
+
+
+
+
+```{r}
+
+regressionmatrix %>%
+  mutate(
+    depthbin = round(SG_Absolute_depth_to_bedrock, -3),
+    windbin = round(wind_gust_max,0)
+  )%>%
+  ggplot(.,aes(x = windbin, y = depthbin/100, fill = meanfraction))+
+  geom_tile()+
+  scale_fill_viridis_c(limits = c(0,0.4), oob = scales::squish, direction = -1)+
+  labs(x = 'Maximum wind gust speed (m/s)', y = 'Soil absolute depth to bedrock (cm)')+
+  theme_classic()+
+  theme(axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+
+```
+
+```{r}
+
+regressionmatrix %>%
+  mutate(
+    depthcat = case_when(SG_Soil_pH_H2O_0_100cm > 50 ~ 'high',
+                         .default = 'low')
+  )%>%
+  ggplot(., aes(x = Nitrogen, y = meanfraction, group = depthcat, color = depthcat))+
+  #ggplot(., aes(x = wind_gust_max, y = meanfraction, color = SG_Absolute_depth_to_bedrock/100))+
+  geom_point()+
+  #geom_smooth()+
+  scale_x_continuous(trans = 'sqrt')+
+  geom_smooth(method = 'glm', method.args = list(family = 'binomial'))+
+  scale_color_viridis_d()
+
+```
+
+
+
+
+
+```{r}
+
+regressionmatrix %>%
+  mutate(
+    depthcat = case_when(CHELSA_Annual_Mean_Temperature > 200 ~ 'warm',
+                         .default = 'cold')
+  )%>%
+  ggplot(., aes(x = CHELSA_Annual_Precipitation, y = meanfraction, group = depthcat, color = depthcat))+
+  #ggplot(., aes(x = wind_gust_max, y = meanfraction, color = SG_Absolute_depth_to_bedrock/100))+
+  geom_point()+
+  #geom_smooth()+
+  #scale_x_continuous(trans = 'sqrt')+
+  #geom_smooth(method = 'lm')+
+  geom_smooth(method = 'glm', method.args = list(family = 'binomial'))+
+  scale_color_viridis_d()
+
+```
+```{r}
+regressionmatrix %>%
+  mutate(
+    tempbin = round(CHELSA_Annual_Mean_Temperature, -1),
+    prepbin = round(CHELSA_Annual_Precipitation,-3)
+  )%>%
+  ggplot(.,aes(x = tempbin, y = prepbin, fill = meanfraction))+
+  geom_tile()+
+  scale_fill_viridis_c(limits = c(0,0.4), oob = scales::squish)
+```
+
