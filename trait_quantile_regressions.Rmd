@@ -1,0 +1,387 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-08-12"
+---
+
+
+```{r}
+library(ggplot2)
+
+library(readr)
+
+library(dplyr)
+
+
+```
+
+
+```{r}
+
+allplots <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_plot_pixel_aggregate_20251219.csv')
+
+allspecies <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\allindi_withcomp_20250827.csv')
+
+
+
+```
+
+```{r}
+df <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_species_correctnames_nodups_20260119.csv')
+
+
+
+```
+
+
+```{r}
+specieslist <- df$Accepted_SPNAME
+
+specieslist <- specieslist[!grepl('Dacrycarpus',specieslist)]
+
+#specieslist <- sub('^(\\S*\\s+\\S+).*', '\\1', specieslist)
+
+specieslist <- unique(specieslist)
+```
+
+```{r}
+allspecies <- allspecies %>%
+  mutate(buttress = case_when(
+    Species %in% specieslist ~ 1,
+    .default = 0
+  ))
+
+
+```
+
+
+```{r}
+length(unique(allspecies[allspecies$buttress == 1,]$Species))
+
+length(unique(allspecies$Species))
+```
+
+
+```{r}
+
+allspecies <- allspecies %>%
+  group_by(PlotObservationID)%>%
+  mutate(fraction = sum(buttress * Relative_cover, na.rm = TRUE)/sum(Relative_cover, na.rm = TRUE))%>%
+  ungroup()
+
+```
+
+
+
+```{r}
+
+esttry <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\esttry.csv')
+
+```
+
+
+
+```{r}
+library(tidyr)
+esttry <- esttry %>%
+  pivot_wider(names_from = trait,
+              values_from = pred_value)
+
+```
+
+```{r}
+
+esttry <- esttry %>%
+  group_by(accepted_bin)%>%
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)))%>%
+  ungroup()
+
+```
+
+```{r}
+subspecies <- allspecies %>%
+  filter(WWF_Biome %in% c(1))
+
+
+
+```
+
+```{r}
+
+subspecies <- subspecies %>%
+  left_join(esttry, by = c('Species' = 'accepted_bin'))
+
+```
+
+
+
+
+```{r}
+subspecies <- subspecies[complete.cases(subspecies[,86:103]),]
+
+
+```
+
+```{r}
+pcamatrix <- subspecies%>%
+  dplyr::select(c(
+    `Wood density`,
+    `Root depth`,
+    `Leaf N per mass`,
+    `Leaf P per mass`,
+    `Bark thickness`,
+    #`Seed dry mass`,
+    `Leaf K per mass`,
+    #`Stomatal conductance`,
+    `Leaf thickness`,
+    #`Leaf density`,
+    `Leaf Vcmax per dry mass`,
+    #`Stem conduit diameter`,
+    `Crown diameter`,
+    `Crown height`,
+    `Tree height`,
+    `Leaf area`,
+    `Specific leaf area`,
+    buttress
+  ))
+  
+pcamatrix <- pcamatrix[complete.cases(pcamatrix),]
+
+ppp <- prcomp(pcamatrix[,-ncol(pcamatrix)], center = T, scale. = TRUE)
+
+summary(ppp)
+
+```
+
+
+```{r}
+subspecies <- cbind(subspecies, ppp$x[,1:2])
+
+
+```
+
+
+```{r}
+
+loadings <-as.data.frame(ppp$rotation)
+
+loadings$var <- rownames(loadings)
+
+
+loadings$contrib <- sqrt(loadings$PC1^2 + loadings$PC2^2)
+
+#loadings$category <- 'other'
+
+top_traits <- loadings %>%
+  arrange(desc(contrib))%>%
+  slice(1:8)%>%
+  pull(var)
+
+loadings <- loadings %>%
+  mutate(color = ifelse(var %in% top_traits, "black", "#999999"),
+         label = ifelse(var %in% top_traits, var, NA),
+         angle = atan2(PC2,PC1) * 180/pi)
+```
+
+
+
+```{r}
+ggplot()+
+  geom_point(data = subspecies, aes(x = PC1, y = PC2, color = as.factor(buttress)),alpha = 0.01, size = 1)+
+  stat_ellipse(data = subspecies, aes(x = PC1, y = PC2, color = as.factor(buttress), fill = as.factor(buttress)),level = 0.67, size = 1)+
+  scale_color_manual(values = c('#f3a361', '#274753'))+
+  scale_fill_manual(values = c('#f3a361', '#274753'))+
+  geom_text(data = filter(loadings, !is.na(label)), aes(x = PC1*5, y = PC2*5, label = label, angle = angle),
+            #inherit.aes = FALSE,
+            hjust = -0.3, 
+            vjust = -0.2, 
+            size = 5)+
+  geom_segment(data = loadings, aes(x = 0, y = 0, xend = PC1*5, yend = PC2*5), 
+               arrow = arrow(length = unit(0.2,'cm')),
+              # inherit.aes = FALSE,
+               color = loadings$color)+
+  coord_cartesian(xlim = c(-5,5), ylim = c(-6,3))+
+  labs(x = 'PC1', y = 'PC2')+
+  theme_light()+
+  theme(legend.position = 'none', axis.title = element_text(color = '#000000', size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+```
+
+```{r}
+subsss <- subspecies %>%
+  group_by(PlotObservationID)%>%
+  dplyr::summarise(
+    fraction = mean(fraction,na.rm = TRUE),
+    minthick = quantile(`Leaf thickness`,0.05, na.rm = TRUE),
+    midthick = quantile(`Leaf thickness`,0.5, na.rm = TRUE),
+    maxthick = quantile(`Leaf thickness`,0.95, na.rm = TRUE),
+    mindensity = quantile(`Wood density`, 0.05, na.rm = TRUE),
+    middensity = quantile(`Wood density`, 0.5, na.rm = TRUE),
+    maxdensity = quantile(`Wood density`, 0.95, na.rm = TRUE),
+    minsla = quantile(`Specific leaf area`,0.05, na.rm = TRUE),
+    midsla = quantile(`Specific leaf area`,0.5, na.rm = TRUE),
+    maxsla = quantile(`Specific leaf area`,0.95, na.rm = TRUE),
+    minn = quantile(`Leaf N per mass`,0.05, na.rm = TRUE),
+    midn = quantile(`Leaf N per mass`,0.5, na.rm = TRUE),
+    maxn = quantile(`Leaf N per mass`,0.95, na.rm = TRUE),
+    minp = quantile(`Leaf P per mass`,0.05, na.rm = TRUE),
+    midp = quantile(`Leaf P per mass`,0.5, na.rm = TRUE),
+    maxp = quantile(`Leaf P per mass`,0.95, na.rm = TRUE),
+    mink = quantile(`Leaf K per mass`,0.05, na.rm = TRUE),
+    midk = quantile(`Leaf K per mass`,0.5, na.rm = TRUE),
+    maxk = quantile(`Leaf K per mass`,0.95, na.rm = TRUE),
+    minroot = quantile(`Root depth`,0.05, na.rm = TRUE),
+    midroot = quantile(`Root depth`,0.5, na.rm = TRUE),
+    maxroot = quantile(`Root depth`,0.95, na.rm = TRUE),
+    minvc = quantile(`Leaf Vcmax per dry mass`, 0.05, na.rm = TRUE),
+    midvc = quantile(`Leaf Vcmax per dry mass`, 0.5, na.rm = TRUE),
+    maxvc = quantile(`Leaf Vcmax per dry mass`, 0.95, na.rm = TRUE),
+    mindiameter = quantile(`Crown diameter`, 0.15, na.rm = TRUE),
+    middiameter = quantile(`Crown diameter`, 0.5, na.rm = TRUE),
+    maxdiameter = quantile(`Crown diameter`, 0.85, na.rm = TRUE),
+    mincrnheight = quantile(`Crown height`, 0.05, na.rm = TRUE),
+    midcrnheight = quantile(`Crown height`, 0.5, na.rm = TRUE),
+    maxcrnheight = quantile(`Crown height`, 0.95, na.rm = TRUE),
+    mintreeheight =  quantile(`Tree height`, 0.05, na.rm = TRUE),
+    midtreeheight =  quantile(`Tree height`, 0.5, na.rm = TRUE),
+    maxtreeheight = quantile(`Tree height`, 0.95, na.rm = TRUE),
+    minleafarea = quantile(`Leaf area`, 0.05, na.rm = TRUE),
+    midleafarea = quantile(`Leaf area`, 0.5, na.rm = TRUE),
+    maxleafarea = quantile(`Leaf area`, 0.95, na.rm = TRUE),
+    minbark = quantile(`Bark thickness`, 0.05, na.rm = TRUE),
+    midbark = quantile(`Bark thickness`, 0.5, na.rm = TRUE),
+    maxbark = quantile(`Bark thickness`, 0.95, na.rm = TRUE)
+  )%>%
+  ungroup()
+  
+
+
+```
+
+
+```{r}
+
+library(reshape2)
+
+datsub <- melt(subsss, id.vars = 1:2)
+
+
+```
+
+
+```{r}
+
+library(do)
+
+datsub$variable = as.character(datsub$variable)
+
+
+datsub <- datsub %>%
+  mutate(group = substr(variable, 4, nchar(variable)),
+         levels = substr(variable, 1,3))
+
+
+```
+
+
+```{r}
+datsub %>%
+  filter(is.na(variable))%>%
+  nrow()
+
+```
+
+
+```{r}
+
+themodel = summary(lm(value~fraction, data = datsub[datsub$variable == 'maxleafarea',]))
+
+```
+
+
+
+
+```{r}
+extractcoef = function(ds){
+  
+  themodel = summary(lm(scale(value)~fraction, data = ds))
+  
+  coef <- themodel$coefficients[2,1]
+  
+  
+  return(coef)
+}
+
+extractp = function(ds){
+  
+  themodel = summary(lm(scale(value)~fraction, data = ds))
+  
+  p <- themodel$coefficients[2,4]
+  
+  
+  return(p)
+}
+
+
+```
+
+
+
+
+
+```{r}
+
+datsum <- datsub %>%
+  group_by( group, levels)%>%
+  do(data.frame(
+    coefficients = extractcoef(.),
+    pvalues = extractp(.)
+  ))%>%
+  ungroup()
+
+
+```
+
+
+
+```{r}
+
+datsum <- datsum %>%
+  mutate(coefficients = case_when(
+    pvalues>=0.05 ~ NA,
+    .default = coefficients
+  ))
+
+
+```
+
+
+```{r}
+unique(datsum$group)
+
+
+```
+
+
+
+```{r}
+
+datsum$levels <- factor(datsum$levels, levels = c('min','mid' ,'max'))
+
+datsum$group <- factor(datsum$group, levels = c( 'treeheight','diameter', 'crnheight', 'density' ,'root','bark','thick','leafarea','vc', 'k','p','sla', 'n'))
+
+datsum %>%
+  ggplot(., aes(x = levels, y = group))+
+  geom_tile(color = NA,aes( fill = coefficients))+
+  scale_fill_gradient2(low = "#B2182B", mid = "white", high = "#2166AC",
+    midpoint = 0, limits = c(-1,1), oob = scales::squish, na.value = 'white')+
+  geom_text(aes(label = scales::number(coefficients, 0.01)), color = '#595959', size = 6)+
+  theme_minimal()
+  #geom_point(aes(size = coefficients, color = as.numeric(coefficients)/abs(coefficients)), shape = 16)+
+
+  #scale_color_gradientn(colors = c( '#023e8a','#fdf0d5','#c1121f'),limits = c(-2,2), oob = scales::squish,)
+```
+
+
+
