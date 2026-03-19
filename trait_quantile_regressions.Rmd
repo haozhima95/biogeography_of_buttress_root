@@ -4,6 +4,8 @@ output: html_document
 date: "2025-08-12"
 ---
 
+### This script is used for analyzing trait variations along buttress root fractions and will construct figure S8.
+
 
 ```{r}
 library(ggplot2)
@@ -18,18 +20,19 @@ library(dplyr)
 
 ```{r}
 
-allplots <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_plot_pixel_aggregate_20251219.csv')
+allplots <- read.csv('buttress_plot_pixel_aggregate_20251219.csv')
 
-allspecies <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\allindi_withcomp_20250827.csv')
+allspecies <- read.csv('allindi_withcomp_20250827.csv')
 
 
 
 ```
 
+
+Buttress root species database. Also table S2. 
+
 ```{r}
-df <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_species_correctnames_nodups_20260119.csv')
-
-
+df <- read.csv('buttress_species_correctnames_nodups_20260119.csv')
 
 ```
 
@@ -55,11 +58,6 @@ allspecies <- allspecies %>%
 ```
 
 
-```{r}
-length(unique(allspecies[allspecies$buttress == 1,]$Species))
-
-length(unique(allspecies$Species))
-```
 
 
 ```{r}
@@ -71,11 +69,11 @@ allspecies <- allspecies %>%
 
 ```
 
-
+functional trait dataset, derived from Maynard et al. 2022 Nature Communications. 
 
 ```{r}
 
-esttry <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\esttry.csv')
+esttry <- read.csv('esttry.csv')
 
 ```
 
@@ -130,13 +128,9 @@ pcamatrix <- subspecies%>%
     `Leaf N per mass`,
     `Leaf P per mass`,
     `Bark thickness`,
-    #`Seed dry mass`,
     `Leaf K per mass`,
-    #`Stomatal conductance`,
     `Leaf thickness`,
-    #`Leaf density`,
     `Leaf Vcmax per dry mass`,
-    #`Stem conduit diameter`,
     `Crown diameter`,
     `Crown height`,
     `Tree height`,
@@ -183,7 +177,7 @@ loadings <- loadings %>%
          angle = atan2(PC2,PC1) * 180/pi)
 ```
 
-
+### Figure S8A
 
 ```{r}
 ggplot()+
@@ -207,6 +201,8 @@ ggplot()+
 
 
 ```
+
+
 
 ```{r}
 subsss <- subspecies %>%
@@ -254,11 +250,9 @@ subsss <- subspecies %>%
     maxbark = quantile(`Bark thickness`, 0.95, na.rm = TRUE)
   )%>%
   ungroup()
-  
 
 
 ```
-
 
 ```{r}
 
@@ -268,7 +262,6 @@ datsub <- melt(subsss, id.vars = 1:2)
 
 
 ```
-
 
 ```{r}
 
@@ -363,7 +356,7 @@ unique(datsum$group)
 
 ```
 
-
+## Figure S8B
 
 ```{r}
 
