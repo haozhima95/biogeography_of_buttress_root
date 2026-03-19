@@ -4,6 +4,7 @@ output: html_document
 date: "2024-10-21"
 ---
 
+### This script is used for constructing Figure 1. 
 
 ```{r}
 
@@ -18,7 +19,7 @@ library(readr)
 
 ```{r}
 
-df <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\buttress_plot_pixel_aggregate_20251219.csv')
+df <- read.csv('buttress_plot_pixel_aggregate_20251219.csv')
 
 
 ```
@@ -44,123 +45,6 @@ t1<-df %>%
 library(maps)
 library(tidyverse)
 worlddata <- map_data('world') 
-df%>%
-  ggplot() + 
-  geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#8d99ae', color = '#8d99ae', size = 0.5)+
-    #coord_sf(crs = 8857, default_crs = 4326)+
-  geom_point(data = df, aes(x = pixellon, y = pixellat, color = dataset), size = 2)+
-  labs(x = 'Longitude', y = 'Latitude')+
-  theme_classic()+
-  scale_color_viridis_d(direction = -1)+
-  #scale_color_manual(values = c('#3a8c2d'))+
-  theme(axis.title = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.text = element_blank())
-
-
-```
-
-
-
-
-```{R}
-# Sample data
-
-
-# Define breaks
-breaks <- seq(0, 72, by = 3) # Define intervals (e.g., intervals of size 10)
-
-# Generate labels programmatically
-labels <- paste(head(breaks, -1), "-", tail(breaks, -1), sep = "")
-
-# Apply grouping with dynamic labels
-df$interval_group <- cut(abs(df$pixellat), breaks = breaks, labels = labels, include.lowest = TRUE)
-
-# View the result
-
-```
-
-
-```{r}
-
-
-
-df %>%
-  filter(!is.na(interval_group))%>%
-  ggplot(., aes(x = abs(pixellat)))+
-  #labs(x = 'Absolute latitude', y = 'Buttress root fraction (%)')+
-  geom_histogram(bins = 24)+
-  #stat_summary(fun.data = 'mean_cl_boot', size = 0.5)+
-  #stat_summary(fun = mean, geom = 'line', size = 1)+
-  #coord_cartesian(ylim = c(0,60))+
-  theme(axis.text.x = element_text(angle = 90, size = 20), axis.text.y = element_text(size = 20), axis.title = element_text(size = 20))
-
-
-```
-
-
-```{r}
-t3<-df %>%
-  filter(WWF_Biome<=13)%>%
-  ggplot(., aes(x = as.factor(WWF_Biome), y = meanfraction*100,  fill = as.factor(WWF_Biome)))+
-  #stat_summary( fun.data = 'mean_cl_boot',size = 1)+
-  #stat_summary( fun = mean, geom = 'line', size = 1)
-  geom_boxplot(position = 'identity', outlier.shape = NA)+
-  labs(x = '', y = 'Buttress root fraction (%)')+
-  #geom_violin()+
-  #geom_jitter(width = 0.3, alpha = 0.25)+
-  coord_cartesian(ylim = c(0,50))+
-  scale_y_continuous(trans = 'sqrt')+
-  theme_classic()+
-  theme(axis.text = element_text(color = '#000000', size = 20), axis.title = element_text(color = '#000000', size = 20), legend.position = 'none')
-
-
-```
-
-
-```{r}
-asiadf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\asia_all_buttress_comp_20240919.csv')
-
-asiadf <- asiadf %>%
-  mutate(continent = 'Asia')
-
-amazondf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\amazon_all_buttress_comp_20240919.csv')
-
-amazondf <- amazondf %>%
-  mutate(continent = 'Amazon')
-
-
-africadf <- read.csv('C:\\Users\\haozh\\Desktop\\buttress_root\\africa_all_buttress_comp_20240919.csv')
-
-africadf <- africadf %>%
-  mutate(continent = 'Africa')
-
-```
-
-
-```{r}
-
-alldf <- rbind(asiadf, amazondf, africadf)
-
-```
-
-
-```{r}
-alldf %>%
-  ggplot(., aes(x = continent, y = buttressfraction, color = continent))+
-  geom_boxplot(position = 'identity', outlier.shape = NA)+
-  #geom_violin()+
-  #geom_jitter(width = 0.3, alpha = 0.25)+
-  coord_cartesian(ylim = c(0,0.2))+
-  theme_bw()+
-  theme(axis.text = element_text(color = '#000000', size = 20), axis.title = element_text(color = '#000000', size = 20), legend.position = 'none')
-
-
-```
-
-
-```{r}
-library(maps)
-library(tidyverse)
-worlddata <- map_data('world') 
 library(sp)
 
 library(broom)
@@ -169,7 +53,7 @@ library(mapproj)
 
 library(viridis)
 
-wwf <- shapefile('C:\\Users\\haozh\\Desktop\\buttress_root\\biome1_wwf.shp')
+###wwf <- shapefile('buttress_root\\biome1_wwf.shp')
 
   t2<-ggplot() + 
   geom_map(data = worlddata, map = worlddata, aes(x = long, y = lat, group = group, map_id = region), fill = '#8d99ae', color = '#8d99ae', size = 0.5)+
@@ -200,21 +84,9 @@ ggarrange(t1,t2,
           heights = c(1,2))
 
 
-  #draw_plot_label(label = c("A", "B", "C"), size = 15,
+  #draw_plot_label(label = c("A", "B"), size = 15,
                   #x = c(0, 0.5, 0), y = c(1, 1, 0.5))
 ```
 
-
-```{r}
-
-subdf <- df[df$buttressfraction >= quantile(df$buttressfraction,0.95),]%>%
-  select(c(
-    lat,
-    lon,
-    buttressfraction
-  ))
-
-
-```
 
 
