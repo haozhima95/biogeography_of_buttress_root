@@ -1,0 +1,477 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-11-15"
+---
+
+
+
+```{r}
+
+library(ggplot2)
+
+library(readr)
+
+library(dplyr)
+
+
+```
+
+
+```{r}
+
+setwd('C:\\Users\\haozh\\Desktop\\buttress_root')
+
+
+
+
+
+```
+
+
+```{r}
+
+fia <- read.csv('fia_individual_20241115.csv')
+
+fia <- fia %>%
+  mutate(dataset = 'FIA')
+
+
+baad <- read.csv('baad_individual_20241115.csv')
+
+baad <- baad %>%
+  mutate(dataset = 'BAAD')
+
+ledo<- read.csv('ledo_individual_20241115.csv')
+
+ledo <- ledo %>%
+  mutate(dataset = 'LEDO')
+
+
+tallo <- read.csv('tall_individual_20241115.csv')
+
+tallo <- tallo %>%
+  mutate(dataset = 'tallo')
+
+
+pasoh <- read.csv('pasoh_individual_20241115.csv')
+
+
+pasoh <- pasoh %>%
+  mutate(dataset = 'pasoh')
+
+
+#bien <- read.csv('bien_stem_data_20241115.csv')
+
+#bien <- bien%>%
+#  mutate(PlotObservationID = paste0('BIEN_', plot_name),
+#         Species = scrubbed_species_binomial,
+#         dataset = 'BIEN')
+```
+
+```{r}
+
+#unique(bien$stem_height_m)
+
+```
+
+
+
+```{r}
+
+allindi <- bind_rows(fia, baad, ledo, tallo, pasoh)
+
+
+
+```
+
+
+```{r}
+
+nrow(allindi[is.na(allindi$height_m),])
+
+```
+```{r}
+
+df <- read.csv('c:\\Users\\haozh\\Desktop\\buttress_root\\buttress_species_correctnames_nodups_20260119.csv')
+
+```
+
+```{r}
+
+df <- df %>%
+  dplyr::filter(!grepl("Dacrycarpus",Accepted_SPNAME))
+
+```
+
+
+
+```{r}
+
+buttresslist <- unique(df$Accepted_SPNAME)
+
+```
+
+
+```{r}
+buttresslist <- buttresslist[]
+
+
+```
+
+
+```{r}
+
+allindi <- allindi %>%
+  mutate(buttress = case_when(
+    Species %in% buttresslist ~ 1,
+    .default = 0
+  ))
+
+
+```
+
+
+```{r}
+length(unique(allindi[allindi$buttress == 1,]$Species))
+length(unique(allindi$Species))
+
+```
+
+
+
+
+```{r}
+
+
+p1<-allindi %>%
+  group_by(PlotObservationID)%>%
+  filter(sum(buttress)>0)%>%
+  ungroup()%>%
+  ggplot(., aes(x = dbh_cm, y = height_m, group = as.factor(buttress), color = as.factor(buttress)))+
+  #geom_point(alpha = 0.001)+
+  #scale_x_continuous(trans = 'log10')+
+  #scale_y_continuous(trans = 'log10')+
+  #coord_cartesian(ylim = c(0,40))+
+  #geom_vline(xintercept = 25)+
+  labs(x = 'Stem diameter (cm)', y = 'Tree height (m)')+
+ scale_color_manual(values = c('#e66d50', '#274753'))+
+  geom_smooth()+
+  theme_classic()+
+  theme(axis.text = element_text(color = '#000000', size = 20), axis.title = element_text(color = '#000000', size = 20), legend.position = 'none')
+```
+
+
+```{r}
+
+subindi <- allindi %>%
+  group_by(PlotObservationID)%>%
+  filter(sum(buttress)>0)%>%
+  ungroup()
+
+
+
+
+
+```
+
+
+```{r}
+
+nrow(subindi[subindi$buttress == 1,])
+
+```
+
+
+
+```{r}
+
+plotcompar <- subindi %>%
+  group_by(PlotObservationID, buttress)%>%
+  dplyr::summarise(
+    heightmean = mean(height_m, na.rm = TRUE),
+    heightmax = max(height_m, na.rm = TRUE)
+  )%>%
+  ungroup()
+
+
+```
+
+```{r}
+
+
+plotcompar <- plotcompar %>%
+  mutate(heightmean1 = heightmean*buttress,
+         heightmean0 = heightmean*(1-buttress))
+
+
+```
+
+
+
+
+
+```{r}
+
+plott <- plotcompar %>%
+  group_by(PlotObservationID)%>%
+  summarise(height1 = sum(heightmean1, na.rm = TRUE),
+            height0 = sum(heightmean0, na.rm = TRUE))%>%
+  ungroup()
+
+
+```
+
+
+```{r}
+
+p2<-plott %>%
+  filter(height0>0)%>%
+  ggplot(., aes(height1, height0))+
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  labs(x = 'Tree height\n buttress root species (m)', y = 'Tree height\n tap root species (m)')+
+  geom_abline(slope = 1, intercept = 0)+
+  #geom_vline(xintercept = 11)+
+  scale_x_continuous(trans = 'log10')+
+  scale_y_continuous(trans = 'log10')+
+  theme_bw()+
+  theme(axis.title = element_text(color = "#000000", size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+```
+
+
+```{r}
+subindi %>%
+  filter(dbh_cm>=10)%>%
+  group_by(buttress)%>%
+  
+  summarise(heightmean = mean(height_m, na.rm = TRUE))%>%
+  ungroup()
+
+
+```
+
+
+
+```{R}
+# Sample data
+
+
+# Define breaks
+breaks <- seq(10, 280, by = 10) # Define intervals (e.g., intervals of size 10)
+
+# Generate labels programmatically
+labels <- paste(head(breaks, -1), "-", tail(breaks, -1), sep = "")
+
+# Apply grouping with dynamic labels
+subindi$interval_group <- cut(subindi$dbh_cm, breaks = breaks, labels = labels, include.lowest = TRUE)
+
+# View the result
+
+```
+
+
+
+```{r}
+
+diffdf <- subindi %>%
+  group_by(interval_group, buttress)%>%
+  dplyr::summarise(meanheight = mean(height_m, na.rm = TRUE))%>%
+  ungroup()
+
+```
+
+```{r}
+nrow(subindi[is.na(subindi$height_m),])
+
+
+```
+
+```{r}
+
+diffdf <- diffdf %>%
+  group_by(interval_group)%>%
+  dplyr::summarise(diff = sum((buttress*2-1)*meanheight))%>%
+  ungroup()
+
+```
+
+
+```{r}
+diffdf <- diffdf[complete.cases(diffdf),]
+
+diffdf %>%
+  ggplot(., aes(x = interval_group, y = diff, group = ''))+
+  stat_summary(fun.data = 'mean_cl_boot', size = 1)+
+  geom_line()
+
+```
+
+
+```{r}
+
+
+
+subindi %>%
+  filter(!is.na(interval_group))%>%
+  ggplot(., aes(x = interval_group, y = height_m, group = as.factor(buttress), color = as.factor(buttress)))+
+  labs(x = 'DBH (cm)', y = 'Canopy height (m)')+
+  stat_summary(fun.data = 'mean_cl_boot', size = 0.5)+
+  stat_summary(fun = mean, geom = 'line', size = 1)+
+  coord_cartesian(ylim = c(0,60))+
+  theme(axis.text.x = element_text(angle = 90, size = 20), axis.text.y = element_text(size = 20), axis.title = element_text(size = 20))
+
+
+```
+
+
+```{r}
+bothindi <- bind_rows(baad, tallo)
+
+
+
+```
+
+
+```{r}
+
+nrow(bothindi[is.na(bothindi$crown_diameter_m),])
+
+```
+
+
+```{r}
+
+bothindi <- bothindi %>%
+  filter(!is.na(crown_diameter_m))
+
+
+```
+
+
+```{r}
+
+p3<-allindi %>%
+  group_by(PlotObservationID)%>%
+  filter(sum(buttress)>0)%>%
+  ungroup()%>%
+  ggplot(., aes(x = dbh_cm, y = crown_diameter_m, group = as.factor(buttress), color = as.factor(buttress)))+
+  #geom_point(alpha = 0.001)+
+  #scale_x_continuous(trans = 'log10')+
+  #scale_y_continuous(trans = 'log10')+
+  #coord_cartesian(ylim = c(0,50))+
+  #geom_vline(xintercept = 25)+
+  scale_color_manual(values = c('#e66d50', '#274753'))+
+  labs(x = 'Stem diameter (cm)', y = 'Canopy diameter (m)')+
+  geom_smooth()+
+  theme_classic()+
+  theme(axis.text = element_text(color = '#000000', size = 20), axis.title = element_text(color = '#000000', size = 20), legend.position = 'none')
+
+```
+
+```{r}
+
+subindi <- allindi %>%
+  group_by(PlotObservationID)%>%
+  filter(sum(buttress)>0)%>%
+  ungroup()
+
+
+
+
+
+```
+
+
+```{r}
+
+plotcompar <- subindi %>%
+  group_by(PlotObservationID, buttress)%>%
+  dplyr::summarise(
+    diametermean = mean(crown_diameter_m, na.rm = TRUE),
+    diametermax = max(crown_diameter_m, na.rm = TRUE)
+  )%>%
+  ungroup()
+
+
+```
+
+```{r}
+
+
+plotcompar <- plotcompar %>%
+  mutate(diametermean1 = diametermean*buttress,
+         diametermean0 = diametermean*(1-buttress))
+
+
+```
+
+
+```{r}
+
+plott <- plotcompar %>%
+  group_by(PlotObservationID)%>%
+  summarise(diameter1 = sum(diametermean1, na.rm = TRUE),
+            diameter0 = sum(diametermean0, na.rm = TRUE))%>%
+  ungroup()
+
+
+```
+
+```{r}
+subindi %>%
+  filter(dbh_cm>=10)%>%
+  group_by(buttress)%>%
+  
+  summarise(crownmean = mean(crown_diameter_m, na.rm = TRUE))%>%
+  ungroup()
+
+
+```
+
+
+
+```{r}
+
+p4<-plott %>%
+  filter(diameter0>0)%>%
+  ggplot(., aes(diameter1, diameter0))+
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  geom_abline(slope = 1, intercept = 0)+
+  #geom_vline(xintercept = 11)+
+  scale_x_continuous(trans = 'log10')+
+  scale_y_continuous(trans = 'log10')+
+  labs(x = 'Canopy diameter\n buttress root species (m)', y = 'Canopy diameter\n tap root species (m)')+
+  #geom_abline(slope = 1, intercept = 0)+
+  #geom_vline(xintercept = 11)+
+  #scale_x_continuous(trans = 'log10')+
+  #scale_y_continuous(trans = 'log10')+
+  theme_bw()+
+  theme(axis.title = element_text(color = "#000000", size = 20), axis.text = element_text(color = '#000000', size = 20))
+
+
+
+
+```
+
+
+```{r}
+
+library(ggpubr)
+
+ggarrange(p1,p2,
+          p3,p4,
+          labels = c('A', 'B',
+                     'C', 'D'),
+          nrow = 2,
+          ncol = 2)
+
+```
+
+
+
+
+
