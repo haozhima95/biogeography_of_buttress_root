@@ -4,7 +4,7 @@ output: html_document
 date: "2024-11-15"
 ---
 
-
+This script is used for constructing Figure 5. 
 
 ```{r}
 
@@ -20,11 +20,7 @@ library(dplyr)
 
 ```{r}
 
-setwd('C:\\Users\\haozh\\Desktop\\buttress_root')
-
-
-
-
+setwd('')
 
 ```
 
@@ -61,12 +57,6 @@ pasoh <- pasoh %>%
   mutate(dataset = 'pasoh')
 
 
-#bien <- read.csv('bien_stem_data_20241115.csv')
-
-#bien <- bien%>%
-#  mutate(PlotObservationID = paste0('BIEN_', plot_name),
-#         Species = scrubbed_species_binomial,
-#         dataset = 'BIEN')
 ```
 
 ```{r}
@@ -82,18 +72,14 @@ pasoh <- pasoh %>%
 allindi <- bind_rows(fia, baad, ledo, tallo, pasoh)
 
 
-
 ```
 
 
+Buttress root species dataset 
+
 ```{r}
 
-nrow(allindi[is.na(allindi$height_m),])
-
-```
-```{r}
-
-df <- read.csv('c:\\Users\\haozh\\Desktop\\buttress_root\\buttress_species_correctnames_nodups_20260119.csv')
+df <- read.csv(buttress_species_correctnames_nodups_20260119.csv')
 
 ```
 
@@ -131,18 +117,7 @@ allindi <- allindi %>%
 
 ```
 
-
 ```{r}
-length(unique(allindi[allindi$buttress == 1,]$Species))
-length(unique(allindi$Species))
-
-```
-
-
-
-
-```{r}
-
 
 p1<-allindi %>%
   group_by(PlotObservationID)%>%
@@ -170,18 +145,7 @@ subindi <- allindi %>%
   ungroup()
 
 
-
-
-
 ```
-
-
-```{r}
-
-nrow(subindi[subindi$buttress == 1,])
-
-```
-
 
 
 ```{r}
@@ -206,8 +170,6 @@ plotcompar <- plotcompar %>%
 
 
 ```
-
-
 
 
 
@@ -242,113 +204,6 @@ p2<-plott %>%
 ```
 
 
-```{r}
-subindi %>%
-  filter(dbh_cm>=10)%>%
-  group_by(buttress)%>%
-  
-  summarise(heightmean = mean(height_m, na.rm = TRUE))%>%
-  ungroup()
-
-
-```
-
-
-
-```{R}
-# Sample data
-
-
-# Define breaks
-breaks <- seq(10, 280, by = 10) # Define intervals (e.g., intervals of size 10)
-
-# Generate labels programmatically
-labels <- paste(head(breaks, -1), "-", tail(breaks, -1), sep = "")
-
-# Apply grouping with dynamic labels
-subindi$interval_group <- cut(subindi$dbh_cm, breaks = breaks, labels = labels, include.lowest = TRUE)
-
-# View the result
-
-```
-
-
-
-```{r}
-
-diffdf <- subindi %>%
-  group_by(interval_group, buttress)%>%
-  dplyr::summarise(meanheight = mean(height_m, na.rm = TRUE))%>%
-  ungroup()
-
-```
-
-```{r}
-nrow(subindi[is.na(subindi$height_m),])
-
-
-```
-
-```{r}
-
-diffdf <- diffdf %>%
-  group_by(interval_group)%>%
-  dplyr::summarise(diff = sum((buttress*2-1)*meanheight))%>%
-  ungroup()
-
-```
-
-
-```{r}
-diffdf <- diffdf[complete.cases(diffdf),]
-
-diffdf %>%
-  ggplot(., aes(x = interval_group, y = diff, group = ''))+
-  stat_summary(fun.data = 'mean_cl_boot', size = 1)+
-  geom_line()
-
-```
-
-
-```{r}
-
-
-
-subindi %>%
-  filter(!is.na(interval_group))%>%
-  ggplot(., aes(x = interval_group, y = height_m, group = as.factor(buttress), color = as.factor(buttress)))+
-  labs(x = 'DBH (cm)', y = 'Canopy height (m)')+
-  stat_summary(fun.data = 'mean_cl_boot', size = 0.5)+
-  stat_summary(fun = mean, geom = 'line', size = 1)+
-  coord_cartesian(ylim = c(0,60))+
-  theme(axis.text.x = element_text(angle = 90, size = 20), axis.text.y = element_text(size = 20), axis.title = element_text(size = 20))
-
-
-```
-
-
-```{r}
-bothindi <- bind_rows(baad, tallo)
-
-
-
-```
-
-
-```{r}
-
-nrow(bothindi[is.na(bothindi$crown_diameter_m),])
-
-```
-
-
-```{r}
-
-bothindi <- bothindi %>%
-  filter(!is.na(crown_diameter_m))
-
-
-```
 
 
 ```{r}
